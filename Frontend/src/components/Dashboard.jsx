@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { 
   Container, 
   Paper, 
@@ -10,7 +10,15 @@ import {
   CardContent,
   CardActions,
   Avatar,
-  Divider
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  InputAdornment,
+  Alert
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -20,13 +28,25 @@ import {
   Logout,
   Hotel as HotelIcon,
   People as PeopleIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Visibility,
+  VisibilityOff,
+  Add as AddIcon
 } from '@mui/icons-material';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [openCreateManager, setOpenCreateManager] = useState(false);
+  const [openCreateAdmin, setOpenCreateAdmin] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const formRef = useRef(null);
 
   useEffect(() => {
     const role = localStorage.getItem('role');
@@ -43,6 +63,104 @@ const Dashboard = () => {
     localStorage.removeItem('role');
     localStorage.removeItem('email');
     navigate('/login');
+  };
+
+  const handleCreateAdmin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    const form = formRef.current;
+    const username = form.username.value;
+    const email = form.email.value;
+    const password = form.password.value;
+    const confirmPassword = form.confirmPassword.value;
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    try {
+      const response = await axios.post(API_ENDPOINTS.ADMIN.SIGNUP, {
+        username,
+        email,
+        password,
+        confirmPassword
+      });
+
+      // Check if the response contains an error message
+      if (response.data === 'Email is already registered.' || 
+          response.data === 'Username is already taken.' ||
+          response.data === 'Password and Confirm Password do not match.') {
+        setError(response.data);
+        return;
+      }
+
+      if (response.data === 'Admin registered successfully.') {
+        setSuccess('Admin account created successfully!');
+        form.reset();
+        
+        setTimeout(() => {
+          setOpenCreateAdmin(false);
+          setSuccess('');
+        }, 2000);
+      } else {
+        setError('Failed to create admin account. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error creating admin:', err);
+      setError(err.response?.data || 'Failed to create admin account');
+    }
+  };
+
+  const handleCreateManager = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    const form = formRef.current;
+    const username = form.username.value;
+    const email = form.email.value;
+    const password = form.password.value;
+    const confirmPassword = form.confirmPassword.value;
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    try {
+      const response = await axios.post(API_ENDPOINTS.ADMIN.CREATE_MANAGER, {
+        username,
+        email,
+        password,
+        confirmPassword
+      });
+
+      // Check if the response contains an error message
+      if (response.data === 'Email is already registered.' || 
+          response.data === 'Username is already taken.' ||
+          response.data === 'Password and Confirm Password do not match.') {
+        setError(response.data);
+        return;
+      }
+
+      if (response.data === 'Manager created successfully by Admin.') {
+        setSuccess('Manager account created successfully!');
+        form.reset();
+        
+        setTimeout(() => {
+          setOpenCreateManager(false);
+          setSuccess('');
+        }, 2000);
+      } else {
+        setError('Failed to create manager account. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error creating manager:', err);
+      setError(err.response?.data || 'Failed to create manager account');
+    }
   };
 
   const getRoleIcon = () => {
@@ -75,9 +193,22 @@ const Dashboard = () => {
     switch(userRole) {
       case 'admin':
         return [
-          { title: 'Manage Hotels', icon: <HotelIcon />, description: 'View and manage all hotels in the system' },
-          { title: 'Manage Users', icon: <PeopleIcon />, description: 'Manage all user accounts and permissions' },
-          { title: 'System Settings', icon: <SettingsIcon />, description: 'Configure system-wide settings' }
+          { 
+            title: 'Create Admin', 
+            icon: <AdminPanelSettings />, 
+            description: 'Create a new administrator account',
+            action: () => setOpenCreateAdmin(true)
+          },
+          { 
+            title: 'Create Manager', 
+            icon: <AddIcon />, 
+            description: 'Create a new hotel manager account',
+            action: () => setOpenCreateManager(true)
+          },
+          // Commented out until implemented
+          // { title: 'Manage Hotels', icon: <HotelIcon />, description: 'View and manage all hotels in the system' },
+          // { title: 'Manage Users', icon: <PeopleIcon />, description: 'Manage all user accounts and permissions' },
+          // { title: 'System Settings', icon: <SettingsIcon />, description: 'Configure system-wide settings' }
         ];
       case 'hotel_manager':
         return [
@@ -187,18 +318,233 @@ const Dashboard = () => {
                     <Button 
                       size="small" 
                       color="primary"
+                      onClick={item.action}
                       sx={{ 
                         textTransform: 'none',
                         fontWeight: 600
                       }}
                     >
-                      View Details
+                      {item.title.startsWith('Create') ? 'Create' : 'View Details'}
                     </Button>
                   </CardActions>
                 </Card>
               </Grid>
             ))}
           </Grid>
+
+          {/* Create Admin Dialog */}
+          <Dialog 
+            open={openCreateAdmin} 
+            onClose={() => {
+              setOpenCreateAdmin(false);
+              setError('');
+              setSuccess('');
+              if (formRef.current) {
+                formRef.current.reset();
+              }
+            }}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>Create New Admin Account</DialogTitle>
+            <form ref={formRef} onSubmit={handleCreateAdmin}>
+              <DialogContent>
+                {error && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                  </Alert>
+                )}
+                {success && (
+                  <Alert severity="success" sx={{ mb: 2 }}>
+                    {success}
+                  </Alert>
+                )}
+                <TextField
+                  fullWidth
+                  label="Username"
+                  name="username"
+                  margin="normal"
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                  margin="normal"
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  margin="normal"
+                  required
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Confirm Password"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  margin="normal"
+                  required
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          edge="end"
+                        >
+                          {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </DialogContent>
+              <DialogActions>
+                <Button 
+                  onClick={() => {
+                    setOpenCreateAdmin(false);
+                    setError('');
+                    setSuccess('');
+                    if (formRef.current) {
+                      formRef.current.reset();
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant="contained" 
+                  color="primary"
+                >
+                  Create Admin
+                </Button>
+              </DialogActions>
+            </form>
+          </Dialog>
+
+          {/* Create Manager Dialog */}
+          <Dialog 
+            open={openCreateManager} 
+            onClose={() => {
+              setOpenCreateManager(false);
+              setError('');
+              setSuccess('');
+              if (formRef.current) {
+                formRef.current.reset();
+              }
+            }}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>Create New Manager Account</DialogTitle>
+            <form ref={formRef} onSubmit={handleCreateManager}>
+              <DialogContent>
+                {error && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                  </Alert>
+                )}
+                {success && (
+                  <Alert severity="success" sx={{ mb: 2 }}>
+                    {success}
+                  </Alert>
+                )}
+                <TextField
+                  fullWidth
+                  label="Username"
+                  name="username"
+                  margin="normal"
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                  margin="normal"
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  margin="normal"
+                  required
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Confirm Password"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  margin="normal"
+                  required
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          edge="end"
+                        >
+                          {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </DialogContent>
+              <DialogActions>
+                <Button 
+                  onClick={() => {
+                    setOpenCreateManager(false);
+                    setError('');
+                    setSuccess('');
+                    if (formRef.current) {
+                      formRef.current.reset();
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant="contained" 
+                  color="primary"
+                >
+                  Create Manager
+                </Button>
+              </DialogActions>
+            </form>
+          </Dialog>
         </Paper>
       </Container>
     </Box>

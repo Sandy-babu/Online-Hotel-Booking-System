@@ -74,26 +74,40 @@ const Login = () => {
       }
 
       console.log('Login Response:', response.data);
+      console.log('User Role:', formData.role);
 
       // Check if the response indicates successful login
-      if (response.data === 'Login successful!') {
+      const successMessages = {
+        admin: 'Admin Login Successful!',
+        hotel_manager: 'Manager Login Successful!',
+        customer: 'Login successful!'
+      };
+
+      if (response.data === successMessages[formData.role]) {
         // Store role and email in localStorage
         localStorage.setItem('role', formData.role);
         localStorage.setItem('email', formData.email);
         
+        console.log('Stored Role:', localStorage.getItem('role'));
+        console.log('Redirecting to dashboard...');
+        
         // Redirect based on role after successful login
         switch(formData.role) {
           case 'admin':
-            navigate('/admin/dashboard');
+            console.log('Redirecting to admin dashboard');
+            navigate('/admin/dashboard', { replace: true });
             break;
           case 'hotel_manager':
-            navigate('/manager/dashboard');
+            console.log('Redirecting to manager dashboard');
+            navigate('/manager/dashboard', { replace: true });
             break;
           case 'customer':
-            navigate('/customer/dashboard');
+            console.log('Redirecting to customer dashboard');
+            navigate('/customer/dashboard', { replace: true });
             break;
           default:
-            navigate('/');
+            console.log('Redirecting to home');
+            navigate('/', { replace: true });
         }
       } else {
         // Handle error messages from the backend

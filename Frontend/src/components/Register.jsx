@@ -60,6 +60,8 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -72,9 +74,19 @@ const Register = () => {
           response = await axios.post(API_ENDPOINTS.ADMIN.SIGNUP, {
             username: formData.username,
             email: formData.email,
-            password: formData.password
+            password: formData.password,
+            confirmPassword: formData.confirmPassword
           });
+
+          // Check admin-specific response
+          if (response.data === 'Email is already registered.' || 
+              response.data === 'Username is already taken.' ||
+              response.data === 'Password and Confirm Password do not match.') {
+            setError(response.data);
+            return;
+          }
           break;
+
         case 'hotel_manager':
           if (!isAdmin) {
             throw new Error('Only admins can create manager accounts');
@@ -82,9 +94,19 @@ const Register = () => {
           response = await axios.post(API_ENDPOINTS.ADMIN.CREATE_MANAGER, {
             username: formData.username,
             email: formData.email,
-            password: formData.password
+            password: formData.password,
+            confirmPassword: formData.confirmPassword
           });
+
+          // Check manager-specific response
+          if (response.data === 'Email is already registered.' || 
+              response.data === 'Username is already taken.' ||
+              response.data === 'Password and Confirm Password do not match.') {
+            setError(response.data);
+            return;
+          }
           break;
+
         case 'customer':
           response = await axios.post(API_ENDPOINTS.CUSTOMER.SIGNUP, {
             username: formData.username,
@@ -92,14 +114,41 @@ const Register = () => {
             password: formData.password,
             confirmPassword: formData.confirmPassword
           });
+
+          // Check customer-specific response
+          if (response.data === 'Email is already registered.' || 
+              response.data === 'Username is already taken.' ||
+              response.data === 'Password and Confirm Password do not match.') {
+            setError(response.data);
+            return;
+          }
+
+          if (response.data === 'Signup successful!') {
+            // Reset form and navigate to login
+            setFormData({
+              username: '',
+              email: '',
+              password: '',
+              confirmPassword: '',
+              role: 'customer'
+            });
+            navigate('/login');
+          } else {
+            setError('Registration failed. Please try again.');
+          }
           break;
+
         default:
           throw new Error('Invalid role');
       }
-      
-      navigate('/login');
+
+      // Only navigate to login if no error occurred
+      if (!error) {
+        navigate('/login');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      console.error('Registration error:', err);
+      setError(err.response?.data || 'Registration failed. Please try again.');
     }
   };
 
