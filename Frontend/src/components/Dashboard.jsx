@@ -36,6 +36,12 @@ import {
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
 
+import HotelIcon from '@mui/icons-material/Hotel';
+import PeopleIcon from '@mui/icons-material/People';
+import SettingsIcon from '@mui/icons-material/Settings';
+import AdminPanelSettings from '@mui/icons-material/AdminPanelSettings';
+import AddIcon from '@mui/icons-material/Add';
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState('');
@@ -189,43 +195,96 @@ const Dashboard = () => {
     }
   };
 
-  const getDashboardContent = () => {
-    switch(userRole) {
-      case 'admin':
-        return [
-          { 
-            title: 'Create Admin', 
-            icon: <AdminPanelSettings />, 
-            description: 'Create a new administrator account',
-            action: () => setOpenCreateAdmin(true)
-          },
-          { 
-            title: 'Create Manager', 
-            icon: <AddIcon />, 
-            description: 'Create a new hotel manager account',
-            action: () => setOpenCreateManager(true)
-          },
-          // Commented out until implemented
-          // { title: 'Manage Hotels', icon: <HotelIcon />, description: 'View and manage all hotels in the system' },
-          // { title: 'Manage Users', icon: <PeopleIcon />, description: 'Manage all user accounts and permissions' },
-          // { title: 'System Settings', icon: <SettingsIcon />, description: 'Configure system-wide settings' }
-        ];
-      case 'hotel_manager':
-        return [
-          { title: 'My Hotel', icon: <HotelIcon />, description: 'Manage your hotel details and rooms' },
-          { title: 'Bookings', icon: <PeopleIcon />, description: 'View and manage hotel bookings' },
-          { title: 'Reports', icon: <SettingsIcon />, description: 'View hotel performance reports' }
-        ];
-      case 'customer':
-        return [
-          { title: 'Book a Room', icon: <HotelIcon />, description: 'Search and book hotel rooms' },
-          { title: 'My Bookings', icon: <PeopleIcon />, description: 'View your current and past bookings' },
-          { title: 'Profile', icon: <SettingsIcon />, description: 'Manage your account settings' }
-        ];
-      default:
-        return [];
-    }
-  };
+  // const getDashboardContent = () => {
+  //   switch(userRole) {
+  //     case 'admin':
+  //       return [
+  //         { 
+  //           title: 'Create Admin', 
+  //           icon: <AdminPanelSettings />, 
+  //           description: 'Create a new administrator account',
+  //           action: () => setOpenCreateAdmin(true)
+  //         },
+  //         { 
+  //           title: 'Create Manager', 
+  //           icon: <AddIcon />, 
+  //           description: 'Create a new hotel manager account',
+  //           action: () => setOpenCreateManager(true)
+  //         },
+  //         // Commented out until implemented
+  //         // { title: 'Manage Hotels', icon: <HotelIcon />, description: 'View and manage all hotels in the system' },
+  //         // { title: 'Manage Users', icon: <PeopleIcon />, description: 'Manage all user accounts and permissions' },
+  //         // { title: 'System Settings', icon: <SettingsIcon />, description: 'Configure system-wide settings' }
+  //       ];
+  //     case 'hotel_manager':
+  //       return [
+  //         { title: 'My Hotel', icon: <HotelIcon />, description: 'Manage your hotel details and rooms' },
+  //         { title: 'Bookings', icon: <PeopleIcon />, description: 'View and manage hotel bookings' },
+  //         { title: 'Reports', icon: <SettingsIcon />, description: 'View hotel performance reports' }
+  //       ];
+  //     case 'customer':
+  //       return [
+  //         { title: 'Book a Room', icon: <HotelIcon />, description: 'Search and book hotel rooms' },
+  //         { title: 'My Bookings', icon: <PeopleIcon />, description: 'View your current and past bookings' },
+  //         { title: 'Profile', icon: <SettingsIcon />, description: 'Manage your account settings' }
+  //       ];
+  //     default:
+  //       return [];
+  //   }
+  // };
+
+  // ...existing code...
+
+// Update the getDashboardContent() function:
+const getDashboardContent = () => {
+  switch(userRole) {
+    case 'admin':
+      return [
+        { 
+          title: 'Create Admin', 
+          icon: <AdminPanelSettings />, 
+          description: 'Create a new administrator account',
+          action: () => setOpenCreateAdmin(true)
+        },
+        { 
+          title: 'Create Manager', 
+          icon: <AddIcon />, 
+          description: 'Create a new hotel manager account',
+          action: () => setOpenCreateManager(true)
+        },
+        // Add more admin actions as needed
+      ];
+    case 'hotel_manager':
+      return [
+        { title: 'My Hotel', icon: <HotelIcon />, description: 'Manage your hotel details and rooms' },
+        { title: 'Bookings', icon: <PeopleIcon />, description: 'View and manage hotel bookings' },
+        { title: 'Reports', icon: <SettingsIcon />, description: 'View hotel performance reports' }
+      ];
+    case 'customer':
+      return [
+        { 
+          title: 'Browse Hotels', 
+          icon: <HotelIcon />, 
+          description: 'Search and book hotel rooms',
+          action: () => navigate('/customer/hotels')
+        },
+        { 
+          title: 'My Bookings', 
+          icon: <PeopleIcon />, 
+          description: 'View your current and past bookings',
+          action: () => navigate('/customer/bookings')
+        },
+        { 
+          title: 'Profile', 
+          icon: <SettingsIcon />, 
+          description: 'Manage your account settings',
+          action: () => console.log('Profile action') // You can implement this later
+        }
+      ];
+    default:
+      return [];
+  }
+};
 
   return (
     <Box sx={{ 

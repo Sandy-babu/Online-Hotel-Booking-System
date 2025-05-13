@@ -83,11 +83,16 @@ const Login = () => {
         customer: 'Login successful!'
       };
 
-      if (response.data === successMessages[formData.role]) {
+      if (response.data === successMessages[formData.role] || response.data.token) {
         // Store role and email in localStorage
         localStorage.setItem('role', formData.role);
         localStorage.setItem('email', formData.email);
         
+          // Store token if available
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token);
+        }
+
         console.log('Stored Role:', localStorage.getItem('role'));
         console.log('Redirecting to dashboard...');
         
