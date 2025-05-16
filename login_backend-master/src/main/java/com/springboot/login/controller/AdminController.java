@@ -4,15 +4,13 @@ import com.springboot.login.dto.AdminLoginDTO;
 import com.springboot.login.dto.AdminSignupDTO;
 import com.springboot.login.dto.ManagerSignupDTO;
 import com.springboot.login.entity.Admin;
-import org.springframework.web.bind.annotation.RequestBody;
-import com.springboot.login.entity.Manager;
 import com.springboot.login.service.AdminService;
-
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -27,8 +25,13 @@ public class AdminController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestBody AdminLoginDTO loginDTO) {
-        return adminService.loginAdmin(loginDTO);
+    public ResponseEntity<?> login(@RequestBody AdminLoginDTO loginDTO) {
+        Map<String, String> response = adminService.loginAdmin(loginDTO);
+        if (response.containsKey("token")) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 
     @PostMapping("/create-manager")

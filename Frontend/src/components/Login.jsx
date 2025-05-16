@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Container, 
   Paper, 
@@ -29,6 +29,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showLoginForm, setShowLoginForm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,87 +49,92 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    // Basic validation
+    if (!formData.email || !formData.password || !formData.role) {
+        setError('Please fill in all fields');
+        setLoading(false);
+        return;
+    }
+
     try {
-      let response;
-      switch(formData.role) {
-        case 'admin':
-          response = await axios.post(API_ENDPOINTS.ADMIN.LOGIN, {
-            email: formData.email,
-            password: formData.password
-          });
-          break;
-        case 'hotel_manager':
-          response = await axios.post(API_ENDPOINTS.MANAGER.LOGIN, {
-            email: formData.email,
-            password: formData.password
-          });
-          break;
-        case 'customer':
-          response = await axios.post(API_ENDPOINTS.CUSTOMER.LOGIN, {
-            email: formData.email,
-            password: formData.password
-          });
-          break;
-        default:
-          throw new Error('Invalid role');
-      }
-
-      console.log('Login Response:', response.data);
-      console.log('User Role:', formData.role);
-
-      // Check if the response indicates successful login
-      const successMessages = {
-        admin: 'Admin Login Successful!',
-        hotel_manager: 'Manager Login Successful!',
-        customer: 'Login successful!'
-      };
-
-      if (response.data === successMessages[formData.role]) {
-        // Store role and email in localStorage
-        localStorage.setItem('role', formData.role);
-        localStorage.setItem('email', formData.email);
-        
-        console.log('Stored Role:', localStorage.getItem('role'));
-        console.log('Redirecting to dashboard...');
-        
-        // Redirect based on role after successful login
-        switch(formData.role) {
-          case 'admin':
-            console.log('Redirecting to admin dashboard');
-            navigate('/admin/dashboard', { replace: true });
-            break;
-          case 'hotel_manager':
-            console.log('Redirecting to manager dashboard');
-            navigate('/manager/dashboard', { replace: true });
-            break;
-          case 'customer':
-            console.log('Redirecting to customer dashboard');
-            navigate('/customer/dashboard', { replace: true });
-            break;
-          default:
-            console.log('Redirecting to home');
-            navigate('/', { replace: true });
+        // Make the login request based on role
+        let endpoint;
+        switch (formData.role) {
+            case 'customer':
+                endpoint = `${API_ENDPOINTS.CUSTOMER.LOGIN}`;
+                break;
+            case 'admin':
+                endpoint = `${API_ENDPOINTS.ADMIN.LOGIN}`;
+                break;
+            case 'hotel_manager':
+                endpoint = `${API_ENDPOINTS.MANAGER.LOGIN}`;
+                break;
+            default:
+                setError('Invalid role selected');
+                setLoading(false);
+                return;
         }
-      } else {
-        // Handle error messages from the backend
-        setError(response.data);
-      }
+
+        console.log('Making login request to:', endpoint);
+        const response = await axios.post(endpoint, {
+            email: formData.email.trim(),
+            password: formData.password
+        });
+        console.log('Login response:', response.data);
+
+        // Store the token and user info
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('userEmail', formData.email.trim());
+        localStorage.setItem('user', JSON.stringify({
+            email: response.data.email,
+            username: response.data.username,
+            role: response.data.role
+        }));
+        
+        // Navigate based on role (case-insensitive comparison)
+        const role = response.data.role.toLowerCase();
+        if (role === 'role_customer' || role === 'customer') {
+            navigate('/customer/dashboard');
+        } else if (role === 'role_admin' || role === 'admin') {
+            navigate('/admin/dashboard');
+        } else if (role === 'role_hotel_manager' || role === 'hotel_manager') {
+            navigate('/manager/dashboard');
+        } else {
+            console.error('Unknown role:', response.data.role);
+            setError('Invalid role received from server');
+        }
     } catch (err) {
-      console.log('Login Error:', err.response?.data || err);
-      // Handle different types of errors
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        setError(err.response.data?.message || 'Invalid credentials');
-      } else if (err.request) {
-        // The request was made but no response was received
-        setError('No response from server. Please try again.');
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        setError('An error occurred. Please try again.');
-      }
+        console.error('Login error:', err);
+        if (err.response) {
+            console.error('Error response:', err.response.data);
+            setError(err.response.data.message || 'Login failed. Please try again.');
+        } else if (err.request) {
+            console.error('No response received:', err.request);
+            setError('No response from server. Please try again.');
+        } else {
+            console.error('Error setting up request:', err.message);
+            setError('An error occurred. Please try again.');
+        }
+    } finally {
+        setLoading(false);
     }
   };
+
+  // Add useEffect to check if user is already logged in
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    
+    if (user && token) {
+      const userData = JSON.parse(user);
+      if (userData.role) {
+        navigate(`/${userData.role}/dashboard`);
+      }
+    }
+  }, [navigate]);
 
   const RoleCard = ({ role, icon, title }) => (
     <Card 
@@ -326,8 +332,9 @@ const Login = () => {
                   background: 'linear-gradient(45deg, #1976D2 30%, #1E88E5 90%)',
                 }
               }}
+              disabled={loading}
             >
-              Sign In
+              {loading ? 'Logging in...' : 'Sign In'}
             </Button>
 
             <Button
