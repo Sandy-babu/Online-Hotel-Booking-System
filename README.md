@@ -1,10 +1,10 @@
-# Online-Hotel-Booking-System
+# Online Hotel Booking System
 
 A comprehensive hotel booking platform that allows customers to search, view, and book hotel rooms, while providing management features for hotel administrators.
 
 ## Description
 
-This Online Hotel Booking System is a full-stack web application that streamlines the hotel booking process. It connects customers with hotels, providing an intuitive interface for room booking and management.
+This Online Hotel Booking System is a full-stack web application that streamlines the hotel booking process. It connects customers with hotels, providing an intuitive interface for room booking and management. The system features secure payment processing, user profile management, booking history tracking, and a powerful dashboard for hotel managers.
 
 ## Features
 
@@ -12,39 +12,71 @@ This Online Hotel Booking System is a full-stack web application that streamline
 - User registration and authentication
 - Search for hotels with filtering options
 - View detailed hotel and room information
-- Make and manage reservations
-- User profile management
-- Booking history view
+- Make reservations with secure payment processing
+- Receive booking confirmation with reference number
+- User profile management with personal information
+- View past and upcoming bookings
+- Cancel bookings based on hotel policies
+- Receive real-time notifications
 
 ### Hotel Management Features
-- Dashboard with analytics and reports
+- Comprehensive dashboard with booking statistics
 - Hotel property management
 - Room inventory management
-- Booking management
-- Reporting and statistics
+- Booking management with filtering capabilities
+- Communicate with guests
+- Process booking cancellations
+- Monitor check-ins and check-outs
+- Generate reports and analytics
+
+### Admin Features
+- User management
+- System oversight
+- Create and manage hotel managers
+- Access to all bookings and payments
+
+## Payment Processing
+
+The system implements a secure payment processing feature that:
+- Collects and validates payment information
+- Processes credit card payments
+- Generates unique booking reference numbers
+- Provides confirmation upon successful payment
+- Handles refunds for cancelled bookings
+
+## Notification System
+
+The application includes a comprehensive notification system:
+- Real-time notifications for booking status changes
+- Notification center with read/unread tracking
+- Email alerts for important events
+- Customizable notification preferences
 
 ## Technology Stack
 
 ### Frontend
-- React.js with Vite
-- Modern UI components
-- Responsive design for all devices
+- React 18 with Vite
+- Material UI for responsive design
+- React Router for navigation
+- Axios for API communication
+- Date-fns for date management
+- Context API for state management
 
 ### Backend
-- Spring Boot for authentication and user management
-- Node.js for hotel and booking services
+- Spring Boot application
+- JWT-based authentication and authorization
 - RESTful API architecture
-
-### Database
-- MongoDB for flexible data storage
+- Spring Security
+- Spring Data JPA
+- MySQL database
 
 ## Setup Instructions
 
 ### Prerequisites
 - Node.js (v16+)
-- Java Development Kit (JDK) 11+
-- Maven
-- MongoDB
+- Java Development Kit (JDK) 17+
+- Maven 3.8+
+- MySQL 8.0+
 
 ### Frontend Setup
 1. Navigate to the Frontend directory:
@@ -59,46 +91,94 @@ This Online Hotel Booking System is a full-stack web application that streamline
    ```
    npm run dev
    ```
+4. Build for production:
+   ```
+   npm run build
+   ```
 
 ### Backend Setup
 1. Navigate to the login_backend-master directory:
    ```
    cd login_backend-master
    ```
-2. Install Node.js dependencies:
+2. Configure database in `application.properties`:
    ```
-   npm install
+   spring.datasource.url=jdbc:mysql://localhost:3306/hotel_booking
+   spring.datasource.username=your_username
+   spring.datasource.password=your_password
    ```
-3. Start the Node.js server:
+3. Build the application:
    ```
-   node server.js
+   mvn clean install
    ```
-4. In a separate terminal, start the Spring Boot application:
+4. Run the application:
    ```
-   ./mvnw spring-boot:run
+   mvn spring-boot:run
    ```
 
 ## Project Structure
-- **Frontend/**: React application built with Vite
-  - **src/components/**: React components including customer and manager interfaces
-  - **src/config/**: API configuration
-  
-- **login_backend-master/**: Backend services
-  - **controllers/**: API endpoints for hotel services
-  - **src/main/java/**: Spring Boot application for user authentication
-  - **routes/**: API route definitions
+
+### Frontend
+- **src/components/**: React components
+  - **customer/**: Customer-specific components
+  - **manager/**: Hotel manager components
+  - **NotificationProvider.jsx**: Global notification system
+- **src/config/**: API configuration
+- **src/assets/**: Static assets
+
+### Backend
+- **src/main/java/com/springboot/login/**: Spring Boot application
+  - **controller/**: REST API controllers
+  - **service/**: Business logic implementation
+  - **repository/**: Data access layer
+  - **entity/**: Data models
+  - **security/**: Authentication and authorization
+  - **dto/**: Data Transfer Objects
 
 ## Usage
+
+### For Customers
 1. Register a new account or login with existing credentials
 2. Browse hotels and select rooms based on your preferences
 3. Make a reservation by completing the booking form
-4. View and manage your bookings in your profile
+4. Enter payment details to confirm your booking
+5. Receive a booking reference number upon successful payment
+6. View your upcoming and past bookings in your profile
+7. Manage your profile information and notifications
 
-## API Documentation
-API documentation can be found in the DOCUMENTATION.md file.
+### For Hotel Managers
+1. Login to the manager dashboard
+2. Manage your hotel properties and room inventory
+3. View and manage bookings for your properties
+4. Monitor check-ins and check-outs
+5. Communicate with guests
+6. Generate reports and analytics
 
-## Testing
-Refer to the postman_testing_guide.md for API testing instructions.
+## Documentation
+
+### API Documentation
+Comprehensive API documentation can be found in the [DOCUMENTATION.md](DOCUMENTATION.md) file, which includes:
+- System architecture
+- API endpoints
+- Database structure
+- Security implementation
+
+### Testing Guide
+Refer to the [postman_testing_guide.md](postman_testing_guide.md) for detailed API testing instructions, including:
+- Environment setup
+- Authentication tests
+- Payment processing tests
+- User profile tests
+- Booking management tests
+- Notification system tests
+
+## Future Enhancements
+- Advanced payment gateway integration
+- Enhanced reporting and analytics
+- Mobile application development
+- Multi-language support
+- Review and rating system
+- Loyalty program implementation
 
 ## License
 This project is licensed under the MIT License.
