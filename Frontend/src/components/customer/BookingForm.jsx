@@ -43,6 +43,7 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
   const [paymentError, setPaymentError] = useState('');
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingReference, setBookingReference] = useState('');
 
   // Calculate total price when dates or guests change
   React.useEffect(() => {
@@ -93,9 +94,37 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
       return;
     }
     
+    // Validate card number format (simple check for demo purposes)
+    if (!/^\d{13,19}$/.test(paymentDetails.cardNumber.replace(/\s/g, ''))) {
+      setPaymentError('Invalid card number format');
+      setPaymentProcessing(false);
+      return;
+    }
+
+    // Validate expiry date format (MM/YY)
+    if (!/^\d{2}\/\d{2}$/.test(paymentDetails.expiryDate)) {
+      setPaymentError('Expiry date should be in MM/YY format');
+      setPaymentProcessing(false);
+      return;
+    }
+
+    // Validate CVV (3-4 digits)
+    if (!/^\d{3,4}$/.test(paymentDetails.cvv)) {
+      setPaymentError('CVV should be 3 or 4 digits');
+      setPaymentProcessing(false);
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('token');
       const email = localStorage.getItem('userEmail');
+
+      // Generate a unique booking reference number
+      const timestamp = new Date().getTime().toString().slice(-6);
+      const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const referenceNumber = `HB-${timestamp}-${randomDigits}`;
+      
+      setBookingReference(referenceNumber);
 
       // Create booking
       const bookingResponse = await axios.post(
@@ -106,7 +135,8 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
           checkIn: checkIn.toISOString(),
           checkOut: checkOut.toISOString(),
           guests,
-          totalPrice
+          totalPrice,
+          bookingReference: referenceNumber
         },
         {
           headers: {
@@ -121,6 +151,7 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
         API_ENDPOINTS.PAYMENTS.PROCESS,
         {
           bookingId: bookingResponse.data.id,
+          bookingReference: referenceNumber,
           ...paymentDetails
         },
         {
@@ -133,7 +164,10 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
       setBookingSuccess(true);
       setOpenPayment(false);
       if (onBookingComplete) {
-        onBookingComplete(bookingResponse.data);
+        onBookingComplete({
+          ...bookingResponse.data,
+          bookingReference: referenceNumber
+        });
       }
       
     } catch (err) {
@@ -281,18 +315,49 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
 
       {/* Success Dialog */}
       <Dialog open={bookingSuccess} onClose={() => setBookingSuccess(false)}>
-        <DialogTitle>Booking Successful!</DialogTitle>
+        <DialogTitle>Booking Confirmed!</DialogTitle>
         <DialogContent>
-          <Typography>
-            Your room has been booked successfully. You can view your booking details in the bookings section.
-          </Typography>
+          <Box sx={{ textAlign: 'center', py: 2 }}>
+            <Box sx={{ color: 'success.main', mb: 2, display: 'flex', justifyContent: 'center' }}>
+              <svg width="64" height="64" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+            </Box>
+            
+            <Typography variant="h6" gutterBottom>
+              Your booking has been confirmed!
+            </Typography>
+            
+            <Box sx={{ mb: 2, p: 2, bgcolor: '#e3f2fd', borderRadius: 2, textAlign: 'center', mt: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                Booking Reference Number
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: 1, mt: 1 }}>
+                {bookingReference}
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+                Please keep this reference number for your records
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+              Your room has been booked successfully. Payment has been processed.
+              You can view your booking details in the bookings section.
+            </Typography>
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setBookingSuccess(false)}>Close</Button>
+          <Button 
+            onClick={() => setBookingSuccess(false)}
+            variant="contained" 
+            color="primary"
+          >
+            Done
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
   );
 };
 
-export default BookingForm; 
+export default BookingForm;

@@ -68,6 +68,7 @@ const HotelDetails = () => {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [paymentSuccess, setPaymentSuccess] = useState(null);
+  const [bookingReference, setBookingReference] = useState('');
   
   // Confirmation dialog state
   const [openConfirmation, setOpenConfirmation] = useState(false);
@@ -162,6 +163,27 @@ const HotelDetails = () => {
       setPaymentProcessing(false);
       return;
     }
+
+    // Validate card number format (simple check for demo purposes)
+    if (!/^\d{13,19}$/.test(paymentDetails.cardNumber.replace(/\s/g, ''))) {
+      setPaymentError('Invalid card number format');
+      setPaymentProcessing(false);
+      return;
+    }
+
+    // Validate expiry date format (MM/YY)
+    if (!/^\d{2}\/\d{2}$/.test(paymentDetails.expiryDate)) {
+      setPaymentError('Expiry date should be in MM/YY format');
+      setPaymentProcessing(false);
+      return;
+    }
+
+    // Validate CVV (3-4 digits)
+    if (!/^\d{3,4}$/.test(paymentDetails.cvv)) {
+      setPaymentError('CVV should be 3 or 4 digits');
+      setPaymentProcessing(false);
+      return;
+    }
     
     try {
       // First create a booking
@@ -183,11 +205,19 @@ const HotelDetails = () => {
         }
       );
       
+      // Generate a unique booking reference number
+      const timestamp = new Date().getTime().toString().slice(-6);
+      const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const referenceNumber = `HB-${timestamp}-${randomDigits}`;
+      
+      setBookingReference(referenceNumber);
+      
       // Then process payment
       const paymentResponse = await axios.post(
         'http://localhost:9000/payments',
         {
           bookingId: bookingResponse.data.booking.id,
+          bookingReference: referenceNumber,
           ...paymentDetails
         },
         {
@@ -198,7 +228,10 @@ const HotelDetails = () => {
       );
       
       setPaymentSuccess(paymentResponse.data);
-      setBookingDetails(bookingResponse.data.booking);
+      setBookingDetails({
+        ...bookingResponse.data.booking,
+        bookingReference: referenceNumber
+      });
       
       // Close payment dialog and open confirmation
       setOpenPayment(false);
@@ -641,6 +674,18 @@ const HotelDetails = () => {
               
               {bookingDetails && (
                 <Paper elevation={3} sx={{ p: 3, my: 3, textAlign: 'left', bgcolor: '#f9f9f9' }}>
+                  <Box sx={{ mb: 2, p: 2, bgcolor: '#e3f2fd', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                      Booking Reference Number
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: 1, mt: 1 }}>
+                      {bookingDetails.bookingReference}
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+                      Please keep this reference number for your records
+                    </Typography>
+                  </Box>
+                  
                   <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
                     Booking Details:
                   </Typography>

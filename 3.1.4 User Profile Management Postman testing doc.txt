@@ -1,0 +1,68 @@
+To test the payment functionality changes using Postman, you'll need to create API test requests that simulate the booking and payment processes. I'll guide you through setting up the necessary Postman tests.
+
+Testing the Booking and Payment Flow in Postman
+Here's a step-by-step approach to test the changes we implemented:
+
+1. Authentication Setup
+First, you need to get an authentication token:
+
+Create a POST request to the login endpoint:
+URL: http://localhost:9000/auth/login (adjust the port if different)
+Headers: Content-Type: application/json
+Body (raw JSON):
+
+{
+  "email": "customer@example.com",
+  "password": "password123"
+}
+
+Send the request and save the token from the response
+2. Create a Booking
+Create a POST request to the bookings endpoint:
+URL: http://localhost:9000/bookings
+Headers:
+Content-Type: application/json
+Authorization: Bearer [your_token_here]
+Body (raw JSON):
+
+{
+  "hotelId": 1,
+  "roomId": 2,
+  "checkIn": "2025-05-20T00:00:00.000Z",
+  "checkOut": "2025-05-23T00:00:00.000Z",
+  "guests": 2,
+  "totalPrice": 450
+}
+
+Send the request and note the booking ID from the response
+3. Process Payment
+Create a POST request to the payments endpoint:
+URL: http://localhost:9000/payments
+Headers:
+Content-Type: application/json
+Authorization: Bearer [your_token_here]
+Body (raw JSON):
+
+{
+  "bookingId": "[booking_id_from_previous_response]",
+  "bookingReference": "HB-123456-7890",
+  "cardNumber": "4111111111111111",
+  "expiryDate": "12/25",
+  "cvv": "123",
+  "nameOnCard": "Test User"
+}
+
+Send the request and verify that the response includes a successful payment confirmation and contains the booking reference number
+4. Verify Booking
+Create a GET request to fetch the booking details:
+URL: http://localhost:9000/bookings/[booking_id]
+Headers:
+Authorization: Bearer [your_token_here]
+Send the request and verify that the booking details include the booking reference number
+Creating a Postman Collection
+For better organization, create a Postman collection:
+
+Name it "Hotel Booking System API Tests"
+Add folders for "Authentication", "Bookings", and "Payments"
+Add the requests to their respective folders
+Use environment variables to store the auth token and booking IDs for reuse
