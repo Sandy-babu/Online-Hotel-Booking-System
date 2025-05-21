@@ -35,6 +35,7 @@ const HotelManagement = () => {
     contact: '',
     description: '',
     amenities: '',
+    image: null
   });
   const [editHotelForm, setEditHotelForm] = useState({
     name: '',
@@ -42,6 +43,7 @@ const HotelManagement = () => {
     contact: '',
     description: '',
     amenities: '',
+    image: null
   });
   const navigate = useNavigate();
 
@@ -75,7 +77,12 @@ const HotelManagement = () => {
       console.log('Response data:', response.data);
       
       if (Array.isArray(response.data)) {
-        setHotels(response.data);
+        // Process the hotels data to ensure image data is properly handled
+        const processedHotels = response.data.map(hotel => ({
+          ...hotel,
+          image: hotel.image || null // Ensure image is either the base64 string or null
+        }));
+        setHotels(processedHotels);
       } else {
         setError('Invalid response format from server');
       }
@@ -114,6 +121,38 @@ const HotelManagement = () => {
     }));
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        console.log('Image loaded successfully');
+        // Store the complete base64 string including the data URL prefix
+        setHotelForm(prev => ({
+          ...prev,
+          image: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleEditImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        console.log('Image loaded successfully');
+        // Store the complete base64 string including the data URL prefix
+        setEditHotelForm(prev => ({
+          ...prev,
+          image: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddHotel = async (e) => {
     e.preventDefault();
     try {
@@ -126,15 +165,31 @@ const HotelManagement = () => {
       }
 
       const id = Math.floor(100 + Math.random() * 900).toString();
+      
+      // Prepare the hotel data
+      const hotelData = {
+        id,
+        name: hotelForm.name,
+        address: hotelForm.address,
+        contact: hotelForm.contact,
+        description: hotelForm.description,
+        amenities: hotelForm.amenities,
+        image: hotelForm.image // This will be the complete base64 string
+      };
+
+      console.log('Sending hotel data with image:', hotelData.image ? 'Image data present' : 'No image');
+
       const response = await axios.post(
         `${API_ENDPOINTS.MANAGER.HOTEL.ADD}?email=${email}`,
-        { id, name: hotelForm.name, address: hotelForm.address, contact: hotelForm.contact, description: hotelForm.description, amenities: hotelForm.amenities },
+        hotelData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
+      console.log('Hotel added successfully:', response.data);
       setHotels([...hotels, response.data]);
       setOpenDialog(false);
       setHotelForm({
@@ -143,6 +198,7 @@ const HotelManagement = () => {
         contact: '',
         description: '',
         amenities: '',
+        image: null
       });
       fetchHotels();
     } catch (error) {
@@ -162,18 +218,39 @@ const HotelManagement = () => {
         return;
       }
 
+      // Prepare the hotel data
+      const hotelData = {
+        name: editHotelForm.name,
+        address: editHotelForm.address,
+        contact: editHotelForm.contact,
+        description: editHotelForm.description,
+        amenities: editHotelForm.amenities,
+        image: editHotelForm.image // This will be the complete base64 string
+      };
+
+      console.log('Sending updated hotel data with image:', hotelData.image ? 'Image data present' : 'No image');
+
       const response = await axios.put(
-        `${API_ENDPOINTS.MANAGER.HOTEL.UPDATE(editingHotel.id)}?email=${email}`,
-        editHotelForm,
+        `${API_ENDPOINTS.MANAGER.HOTEL.UPDATE_BY_ID(editingHotel.id)}?email=${email}`,
+        hotelData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
+      console.log('Hotel updated successfully:', response.data);
+      
+      // Update the hotels list with the edited hotel data
       setHotels(hotels.map(hotel => 
-        hotel.id === editingHotel.id ? response.data : hotel
+        hotel.id === editingHotel.id ? {
+          ...hotel,
+          ...hotelData,
+          id: editingHotel.id // Preserve the original ID
+        } : hotel
       ));
+      
       setOpenDialog(false);
       setEditingHotel(null);
       setEditHotelForm({
@@ -182,8 +259,16 @@ const HotelManagement = () => {
         contact: '',
         description: '',
         amenities: '',
+        image: null
       });
-      fetchHotels();
+      
+      // Show success message
+      setSuccess('Hotel updated successfully!');
+      
+      // Refresh the hotel list after a short delay
+      setTimeout(() => {
+        fetchHotels();
+      }, 1000);
     } catch (error) {
       console.error('Error updating hotel:', error);
       setError(error.response?.data || 'Error updating hotel');
@@ -203,7 +288,7 @@ const HotelManagement = () => {
       }
 
       await axios.delete(
-        `${API_ENDPOINTS.MANAGER.HOTEL.DELETE(hotelId)}?email=${email}`,
+        `${API_ENDPOINTS.MANAGER.HOTEL.DELETE_BY_ID(hotelId)}?email=${email}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -225,6 +310,7 @@ const HotelManagement = () => {
       contact: hotel.contact,
       description: hotel.description,
       amenities: hotel.amenities,
+      image: hotel.image
     });
     setOpenDialog(true);
   };
@@ -339,6 +425,33 @@ const HotelManagement = () => {
                       />
                     </Grid>
                     <Grid item xs={12}>
+                      <input
+                        accept="image/*"
+                        type="file"
+                        onChange={handleImageChange}
+                        style={{ display: 'none' }}
+                        id="hotel-image-upload"
+                      />
+                      <label htmlFor="hotel-image-upload">
+                        <Button
+                          variant="outlined"
+                          component="span"
+                          fullWidth
+                        >
+                          Upload Hotel Image
+                        </Button>
+                      </label>
+                      {hotelForm.image && (
+                        <Box sx={{ mt: 2, textAlign: 'center' }}>
+                          <img
+                            src={hotelForm.image}
+                            alt="Hotel preview"
+                            style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }}
+                          />
+                        </Box>
+                      )}
+                    </Grid>
+                    <Grid item xs={12}>
                       <Button
                         variant="contained"
                         onClick={handleAddHotel}
@@ -369,6 +482,15 @@ const HotelManagement = () => {
                             </IconButton>
                           </Box>
                         </Box>
+                        {hotel.image && (
+                          <Box sx={{ mb: 2, textAlign: 'center' }}>
+                            <img
+                              src={hotel.image}
+                              alt={hotel.name}
+                              style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }}
+                            />
+                          </Box>
+                        )}
                         <Typography color="textSecondary" gutterBottom>
                           {hotel.address}
                         </Typography>
@@ -456,6 +578,33 @@ const HotelManagement = () => {
                   multiline
                   rows={3}
                 />
+              </Grid>
+              <Grid item xs={12}>
+                <input
+                  accept="image/*"
+                  type="file"
+                  onChange={handleEditImageChange}
+                  style={{ display: 'none' }}
+                  id="edit-hotel-image-upload"
+                />
+                <label htmlFor="edit-hotel-image-upload">
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    fullWidth
+                  >
+                    Upload Hotel Image
+                  </Button>
+                </label>
+                {editHotelForm.image && (
+                  <Box sx={{ mt: 2, textAlign: 'center' }}>
+                    <img
+                      src={editHotelForm.image}
+                      alt="Hotel preview"
+                      style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }}
+                    />
+                  </Box>
+                )}
               </Grid>
             </Grid>
           </DialogContent>

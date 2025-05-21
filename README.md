@@ -180,8 +180,11 @@ Refer to the [postman_testing_guide.md](postman_testing_guide.md) for detailed A
 - Review and rating system
 - Loyalty program implementation
 
-## License
-This project is licensed under the MIT License.
-
 ## Contributors
-- Add your name here
+- Vundrala Sandeep
+- Chirag Mahadev
+- Mohammed Abbas Khan
+- Mohammed Ali Khan
+- Ryali Rama Phani Kishore
+- Gandi Srinu
+- Kummari Saritha 

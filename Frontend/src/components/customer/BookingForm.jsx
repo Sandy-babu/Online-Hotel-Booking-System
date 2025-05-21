@@ -26,7 +26,7 @@ import { differenceInDays } from 'date-fns';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../../config/api';
 
-const BookingForm = ({ room, hotel, onBookingComplete }) => {
+const BookingForm = ({ room, hotel, onBookingComplete, onBookingError }) => {
   const [checkIn, setCheckIn] = useState(null);
   const [checkOut, setCheckOut] = useState(null);
   const [guests, setGuests] = useState(1);
@@ -44,6 +44,7 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingReference, setBookingReference] = useState('');
+  const [specialRequests, setSpecialRequests] = useState('');
 
   // Calculate total price when dates or guests change
   React.useEffect(() => {
@@ -59,6 +60,12 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
 
   const handleBookNow = async () => {
     setError('');
+    
+    // Validate room data
+    if (!room || !room.id) {
+      setError('Room information is missing');
+      return;
+    }
     
     // Validation
     if (!checkIn || !checkOut) {
@@ -87,6 +94,20 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
     setPaymentError('');
     setPaymentProcessing(true);
     
+    // Validate room data again
+    if (!room || !room.id) {
+      setPaymentError('Room information is missing');
+      setPaymentProcessing(false);
+      return;
+    }
+
+    // Validate hotel data
+    if (!hotel || !hotel.id) {
+      setPaymentError('Hotel information is missing');
+      setPaymentProcessing(false);
+      return;
+    }
+    
     // Simple validation
     if (!paymentDetails.cardNumber || !paymentDetails.expiryDate || !paymentDetails.cvv || !paymentDetails.nameOnCard) {
       setPaymentError('All payment fields are required');
@@ -95,7 +116,8 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
     }
     
     // Validate card number format (simple check for demo purposes)
-    if (!/^\d{13,19}$/.test(paymentDetails.cardNumber.replace(/\s/g, ''))) {
+    const cardNumber = paymentDetails.cardNumber.replace(/\s/g, '');
+    if (!/^\d{13,19}$/.test(cardNumber)) {
       setPaymentError('Invalid card number format');
       setPaymentProcessing(false);
       return;
@@ -119,6 +141,12 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
       const token = localStorage.getItem('token');
       const email = localStorage.getItem('userEmail');
 
+      if (!token || !email) {
+        setPaymentError('Authentication information is missing');
+        setPaymentProcessing(false);
+        return;
+      }
+
       // Generate a unique booking reference number
       const timestamp = new Date().getTime().toString().slice(-6);
       const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
@@ -128,7 +156,7 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
 
       // Create booking
       const bookingResponse = await axios.post(
-        API_ENDPOINTS.BOOKINGS.CREATE,
+        API_ENDPOINTS.BOOKING.CREATE,
         {
           hotelId: hotel.id,
           roomId: room.id,
@@ -136,7 +164,8 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
           checkOut: checkOut.toISOString(),
           guests,
           totalPrice,
-          bookingReference: referenceNumber
+          bookingReference: referenceNumber,
+          specialRequests: specialRequests
         },
         {
           headers: {
@@ -146,33 +175,60 @@ const BookingForm = ({ room, hotel, onBookingComplete }) => {
         }
       );
       
-      // Process payment
-      const paymentResponse = await axios.post(
-        API_ENDPOINTS.PAYMENTS.PROCESS,
-        {
-          bookingId: bookingResponse.data.id,
-          bookingReference: referenceNumber,
-          ...paymentDetails
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
+      if (bookingResponse.data && bookingResponse.data.id) {
+        try {
+          // Process payment
+          const paymentResponse = await axios.post(
+            API_ENDPOINTS.PAYMENT.PROCESS,
+            {
+              bookingReference: referenceNumber,
+              cardNumber: cardNumber,
+              expiryDate: paymentDetails.expiryDate,
+              cvv: paymentDetails.cvv,
+              nameOnCard: paymentDetails.nameOnCard,
+              amount: totalPrice,
+              paymentMethod: 'CREDIT_CARD',
+              customerEmail: email
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              },
+              params: { email }
+            }
+          );
+          
+          if (paymentResponse.data && paymentResponse.data.paymentStatus === 'COMPLETED') {
+            setBookingSuccess(true);
+            setOpenPayment(false);
+            if (onBookingComplete) {
+              onBookingComplete();
+            }
+          } else {
+            setPaymentError(paymentResponse.data?.message || 'Payment failed');
+            if (onBookingError) {
+              onBookingError(paymentResponse.data?.message || 'Payment failed');
+            }
+          }
+        } catch (paymentErr) {
+          console.error('Payment processing error:', paymentErr);
+          setPaymentError(paymentErr.response?.data?.message || 'Payment failed. Please try again.');
+          if (onBookingError) {
+            onBookingError(paymentErr.response?.data?.message || 'Payment processing failed');
           }
         }
-      );
-      
-      setBookingSuccess(true);
-      setOpenPayment(false);
-      if (onBookingComplete) {
-        onBookingComplete({
-          ...bookingResponse.data,
-          bookingReference: referenceNumber
-        });
+      } else {
+        setPaymentError('Failed to create booking: Invalid response from server');
+        if (onBookingError) {
+          onBookingError('Failed to create booking: Invalid response from server');
+        }
       }
-      
     } catch (err) {
       console.error('Error processing booking/payment:', err);
       setPaymentError(err.response?.data?.message || 'Payment failed. Please try again.');
+      if (onBookingError) {
+        onBookingError(err.response?.data?.message || 'Error processing booking');
+      }
     } finally {
       setPaymentProcessing(false);
     }

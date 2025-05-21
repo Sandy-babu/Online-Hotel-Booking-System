@@ -56,7 +56,7 @@ const Bookings = () => {
       try {
         setLoading(true);
         const email = localStorage.getItem('userEmail');
-        const response = await axios.get(API_ENDPOINTS.BOOKINGS.GET_USER_BOOKINGS, {
+        const response = await axios.get(API_ENDPOINTS.BOOKING.GET_USER_BOOKINGS, {
           params: { email }
         });
         setBookings(response.data);
@@ -79,7 +79,7 @@ const Bookings = () => {
   const handleCancelBooking = async () => {
     try {
       const email = localStorage.getItem('userEmail');
-      const response = await axios.put(API_ENDPOINTS.BOOKINGS.CANCEL(selectedBookingId), {}, {
+      const response = await axios.put(API_ENDPOINTS.BOOKING.CANCEL(selectedBookingId), {}, {
         params: { email }
       });
       
@@ -143,20 +143,20 @@ const Bookings = () => {
     
     switch(tabValue) {
       case 'upcoming':
-        filtered = bookings.filter(booking => 
-          isAfter(parseISO(booking.checkIn), today) && booking.status !== 'cancelled'
+        filtered = bookings.filter(booking =>
+          isAfter(parseISO(booking.checkIn), today) && booking.status?.toLowerCase() !== 'cancelled'
         );
         break;
       case 'past':
-        filtered = bookings.filter(booking => 
-          isBefore(parseISO(booking.checkOut), today) || booking.status === 'cancelled'
+        filtered = bookings.filter(booking =>
+          isBefore(parseISO(booking.checkOut), today) && booking.status?.toLowerCase() !== 'cancelled'
         );
         break;
       case 'cancelled':
-        filtered = bookings.filter(booking => booking.status === 'cancelled');
+        filtered = bookings.filter(booking => booking.status?.toLowerCase() === 'cancelled');
         break;
       default: // 'all'
-        filtered = [...bookings];
+        filtered = bookings.filter(booking => booking.status?.toLowerCase() !== 'cancelled');
     }
     
     // Apply sorting
@@ -182,6 +182,15 @@ const Bookings = () => {
     isAfter(parseISO(booking.checkIn), new Date()) && booking.status !== 'cancelled'
   ).length;
 
+  const handleViewHotel = (booking) => {
+    const hotelId = booking.hotelId || (booking.hotel && booking.hotel.id);
+    if (!hotelId) {
+      setError('Hotel information is not available');
+      return;
+    }
+    navigate(`/customer/hotels/${hotelId}`);
+  };
+
   return (
     <Box sx={{ bgcolor: 'background.paper', minHeight: '100vh', width: '100vw', mx: 0, py: 4 }}>
       <Container maxWidth={false} sx={{ px: { xs: 1, sm: 4, md: 8 } }}>
@@ -198,146 +207,141 @@ const Bookings = () => {
         </Box>
         
         {cancelSuccess && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            {cancelSuccess}
-          </Alert>
+          <Alert severity="success" sx={{ mb: 2 }}>{cancelSuccess}</Alert>
         )}
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        )}
+        
+        <Box sx={{ mb: 3 }}>
+          <Tabs value={activeTab} onChange={handleTabChange}>
+            <Tab label="All" value="all" />
+            <Tab 
+              label={
+                <Badge badgeContent={upcomingCount} color="primary">
+                  Upcoming
+                </Badge>
+              } 
+              value="upcoming" 
+            />
+            <Tab label="Past" value="past" />
+            <Tab label="Cancelled" value="cancelled" />
+          </Tabs>
+        </Box>
+        
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          <Tooltip title={sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}>
+            <IconButton onClick={toggleSortOrder}>
+              <Sort />
+            </IconButton>
+          </Tooltip>
+        </Box>
         
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
             <CircularProgress />
           </Box>
-        ) : error ? (
-          <Alert severity="error" sx={{ my: 3 }}>
-            {error}
-          </Alert>
-        ) : bookings.length === 0 ? (
-          <Paper elevation={2} sx={{ p: 4, borderRadius: 2, textAlign: 'center' }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              You don't have any bookings yet
-            </Typography>
-            <Button 
-              variant="contained" 
-              color="primary"
-              onClick={() => navigate('/customer/hotels')}
-            >
-              Browse Hotels
-            </Button>
-          </Paper>
+        ) : filteredBookings.length === 0 ? (
+          <Alert severity="info">No bookings found</Alert>
         ) : (
-          <>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Tabs value={activeTab} onChange={handleTabChange} aria-label="booking tabs">
-                  <Tab label="All Bookings" value="all" />
-                  <Tab 
-                    label={
-                      <Badge badgeContent={upcomingCount} color="primary">
-                        Upcoming
-                      </Badge>
-                    } 
-                    value="upcoming" 
-                  />
-                  <Tab label="Past" value="past" />
-                  <Tab label="Cancelled" value="cancelled" />
-                </Tabs>
-                <Tooltip title={`Sort by date (${sortOrder === 'desc' ? 'newest first' : 'oldest first'})`}>
-                  <IconButton onClick={toggleSortOrder}>
-                    <Sort />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </Box>
-            
-            {filteredBookings.length === 0 ? (
-              <Paper elevation={2} sx={{ p: 4, borderRadius: 2, textAlign: 'center' }}>
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  No {activeTab} bookings found
-                </Typography>
-                <Button 
-                  variant="contained" 
-                  color="primary"
-                  onClick={() => setActiveTab('all')}
-                >
-                  View All Bookings
-                </Button>
-              </Paper>
-            ) : (
-              <Grid container spacing={4} justifyContent="center">
-                {filteredBookings.map((booking) => (
-                  <Grid item xs={12} sm={6} md={4} key={booking.id}>
-                    <Card sx={{ borderRadius: 4, boxShadow: 4, transition: 'box-shadow 0.2s', '&:hover': { boxShadow: 8 }, height: '100%', minHeight: 340, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                        <Box>
-                          <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>Booking #{booking.id}</Typography>
-                          <Typography variant="body2" color="text.secondary">Hotel: {booking.hotelName}</Typography>
-                          <Typography variant="body2" color="text.secondary">Room: {booking.roomType}</Typography>
-                          <Typography variant="body2" color="text.secondary">Check-in: {format(new Date(booking.checkIn), 'PP')}</Typography>
-                          <Typography variant="body2" color="text.secondary">Check-out: {format(new Date(booking.checkOut), 'PP')}</Typography>
-                          <Typography variant="body2" color="text.secondary">Total: ${booking.totalPrice}</Typography>
-                          <Box sx={{ mt: 1 }}>{getStatusChipProps(booking.status).icon} <Typography variant="body2" component="span" sx={{ ml: 1 }}>{getStatusChipProps(booking.status).label}</Typography></Box>
+          <Grid container spacing={3}>
+            {filteredBookings.map((booking) => (
+              <Grid item xs={12} key={booking.id}>
+                <Card>
+                  <CardContent>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={8}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <HotelOutlined sx={{ mr: 1, color: 'primary.main' }} />
+                          <Typography variant="h6" component="div">
+                            {booking.hotel?.name || 'N/A'}
+                          </Typography>
+                        </Box>
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <LocationOn sx={{ mr: 1, color: 'primary.main' }} />
+                          <Typography variant="body2" color="text.secondary">
+                            {booking.hotel?.address || 'N/A'}
+                          </Typography>
+                        </Box>
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <Receipt sx={{ mr: 1, color: 'primary.main' }} />
+                          <Typography variant="body2">
+                            Room: {booking.room?.type || 'N/A'}{booking.room?.roomNumber ? ` (No. ${booking.room.roomNumber})` : ''}
+                          </Typography>
+                        </Box>
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <CalendarToday sx={{ mr: 1, color: 'primary.main' }} />
+                          <Typography variant="body2">
+                            {format(parseISO(booking.checkIn), 'MMM dd, yyyy')} - {format(parseISO(booking.checkOut), 'MMM dd, yyyy')}
+                          </Typography>
+                        </Box>
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="body2" sx={{ mr: 2 }}>
+                            Guests: {booking.guests}
+                          </Typography>
+                          <Typography variant="body2">
+                            Total: ${booking.totalPrice}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid item xs={12} md={4}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+                          <Chip
+                            {...getStatusChipProps(booking.status)}
+                            sx={{ mb: 2 }}
+                          />
                           
-                          {/* Show remaining days for upcoming bookings */}
-                          {activeTab === 'upcoming' && (
-                            <Box sx={{ mt: 1 }}>
-                              <Chip 
-                                size="small"
-                                color="primary"
-                                icon={<CalendarToday />}
-                                label={`Arriving in ${Math.ceil((new Date(booking.checkIn) - new Date()) / (1000 * 60 * 60 * 24))} days`}
-                              />
-                            </Box>
-                          )}
-                        </Box>
-                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                          {booking.status === 'confirmed' && (
-                            <Button 
-                              variant="outlined" 
-                              color="error"
-                              onClick={() => openCancelDialog(booking.id)}
+                          <Box>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => navigate(`/customer/bookings/${booking.bookingReference}`)}
+                              sx={{ mb: 1, width: '100%' }}
                             >
-                              Cancel Booking
+                              View Details
                             </Button>
-                          )}
-                          <Button 
-                            variant="contained" 
-                            color="primary"
-                            onClick={() => navigate(`/customer/hotel/${booking.hotelId}`)}
-                          >
-                            View Hotel
-                          </Button>
+                            
+                            {booking.status === 'confirmed' && (
+                              <Button
+                                variant="outlined"
+                                color="error"
+                                size="small"
+                                onClick={() => openCancelDialog(booking.id)}
+                                sx={{ width: '100%' }}
+                              >
+                                Cancel Booking
+                              </Button>
+                            )}
+                          </Box>
                         </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
               </Grid>
-            )}
-          </>
+            ))}
+          </Grid>
         )}
         
-        {/* Cancel Booking Dialog */}
         <Dialog
           open={cancelDialogOpen}
           onClose={() => setCancelDialogOpen(false)}
         >
-          <DialogTitle>Confirm Cancellation</DialogTitle>
+          <DialogTitle>Cancel Booking</DialogTitle>
           <DialogContent>
             <Typography>
               Are you sure you want to cancel this booking? This action cannot be undone.
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setCancelDialogOpen(false)}>
-              No, Keep Booking
-            </Button>
-            <Button 
-              onClick={handleCancelBooking}
-              color="error" 
-              variant="contained"
-            >
-              Yes, Cancel Booking
-            </Button>
+            <Button onClick={() => setCancelDialogOpen(false)}>No, Keep Booking</Button>
+            <Button onClick={handleCancelBooking} color="error">Yes, Cancel Booking</Button>
           </DialogActions>
         </Dialog>
       </Container>

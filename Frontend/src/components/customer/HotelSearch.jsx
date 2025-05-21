@@ -57,7 +57,7 @@ const HotelSearch = () => {
   };
 
   const handleHotelClick = (hotelId) => {
-    navigate(`/customer/hotel/${hotelId}`);
+    navigate(`/customer/hotels/${hotelId}`);
   };
 
   return (
@@ -102,46 +102,105 @@ const HotelSearch = () => {
               </Button>
             </Grid>
           </Grid>
-          <Grid container spacing={4} justifyContent="center">
+          <Grid container spacing={4} justifyContent="center" alignItems="stretch">
             {hotels.map((hotel) => (
-              <Grid item xs={12} sm={6} md={4} key={hotel.id}>
+              <Grid item xs={12} sm={6} md={4} key={hotel.id} sx={{ display: 'flex', justifyContent: 'center', width: 270, maxWidth: 270, minWidth: 270, p: 0 }}>
                 <Card
                   sx={{
+                    width: 270,
+                    height: 420,
+                    display: 'flex',
+                    flexDirection: 'column',
                     borderRadius: 4,
                     boxShadow: 4,
                     transition: 'box-shadow 0.2s',
                     '&:hover': { boxShadow: 8 },
-                    height: '100%',
-                    minHeight: 340,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
                     cursor: 'pointer',
+                    overflow: 'hidden',
+                    flex: '1 0 auto',
                   }}
                   onClick={() => handleHotelClick(hotel.id)}
                 >
-                  <Box sx={{ width: '100%', height: 180, overflow: 'hidden', borderTopLeftRadius: 4, borderTopRightRadius: 4 }}>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 180,
+                      overflow: 'hidden',
+                      borderTopLeftRadius: 4,
+                      borderTopRightRadius: 4,
+                      flexShrink: 0,
+                    }}
+                  >
                     <img
                       src={hotel.image || `https://source.unsplash.com/random/400x180/?hotel,${hotel.name}`}
                       alt={hotel.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block',
+                        borderTopLeftRadius: 4,
+                        borderTopRightRadius: 4,
+                        margin: 0,
+                        padding: 0,
+                      }}
+                      draggable={false}
                     />
                   </Box>
-                  <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <Box>
-                      <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, color: 'primary.main' }}>
+                  <CardContent
+                    sx={{
+                      flexGrow: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: 0,
+                      overflow: 'hidden',
+                      p: 2,
+                    }}
+                  >
+                    <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                      <Typography
+                        variant="h6"
+                        gutterBottom
+                        sx={{ fontWeight: 700, color: 'primary.main' }}
+                        noWrap
+                      >
                         {hotel.name}
                       </Typography>
-                      <Typography color="textSecondary" gutterBottom>
+                      <Typography color="textSecondary" gutterBottom noWrap>
                         {hotel.address}
                       </Typography>
-                      <Typography variant="body2" paragraph>
+                      <Typography
+                        variant="body2"
+                        paragraph
+                        sx={{
+                          minHeight: 40,
+                          maxHeight: 40,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
                         {hotel.description}
                       </Typography>
-                      <Typography variant="body2" color="textSecondary">
+                      <Typography variant="body2" color="textSecondary" noWrap>
                         Contact: {hotel.contact}
                       </Typography>
-                      <Typography variant="body2" color="textSecondary">
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{
+                          minHeight: 20,
+                          maxHeight: 20,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 1,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
                         Amenities: {hotel.amenities}
                       </Typography>
                     </Box>
@@ -149,7 +208,7 @@ const HotelSearch = () => {
                       variant="contained"
                       color="primary"
                       fullWidth
-                      sx={{ mt: 2, borderRadius: 2, fontWeight: 700 }}
+                      sx={{ mt: 2, borderRadius: 2, fontWeight: 700, minWidth: 0, maxWidth: '100%' }}
                     >
                       View Details & Book
                     </Button>

@@ -10,6 +10,8 @@ import com.springboot.login.repository.CustomerRepository;
 import com.springboot.login.repository.HotelRepository;
 import com.springboot.login.repository.RoomRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
@@ -37,6 +39,9 @@ public class BookingService {
     
     @Autowired
     private RoomRepository roomRepository;
+    
+    @Autowired
+    private JavaMailSender mailSender;
     
     /**
      * Create a new booking
@@ -118,8 +123,28 @@ public class BookingService {
         
         Booking savedBooking = bookingRepository.save(booking);
         logger.info("Booking created successfully with reference: {}", savedBooking.getBookingReference());
-        
+        // Send confirmation email
+        sendBookingConfirmationEmail(customer.getEmail(), savedBooking);
         return savedBooking;
+    }
+    
+    private void sendBookingConfirmationEmail(String toEmail, Booking booking) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(toEmail);
+            message.setSubject("Booking Confirmation - " + booking.getBookingReference());
+            message.setText("Dear " + booking.getCustomer().getUsername() + ",\n\n" +
+                "Your booking is confirmed!\n" +
+                "Hotel: " + booking.getHotel().getName() + "\n" +
+                "Room: " + booking.getRoom().getType() + "\n" +
+                "Check-in: " + booking.getCheckIn() + "\n" +
+                "Check-out: " + booking.getCheckOut() + "\n" +
+                "Booking Reference: " + booking.getBookingReference() + "\n\n" +
+                "Thank you for booking with us!");
+            mailSender.send(message);
+        } catch (Exception e) {
+            logger.error("Failed to send booking confirmation email: {}", e.getMessage());
+        }
     }
     
     /**
@@ -127,7 +152,9 @@ public class BookingService {
      */
     private boolean isRoomAvailableForDates(Long roomId, LocalDate checkIn, LocalDate checkOut) {
         // Get all confirmed bookings for this room
-        List<Booking> existingBookings = bookingRepository.findByRoom(roomRepository.findById(roomId).get());
+        Room room = roomRepository.findById(roomId).orElse(null);
+        if (room == null) return false;
+        List<Booking> existingBookings = bookingRepository.findByRoom(room);
         
         // Filter for bookings with status CONFIRMED or PENDING that overlap with the requested dates
         for (Booking booking : existingBookings) {

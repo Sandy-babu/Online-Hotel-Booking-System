@@ -19,12 +19,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Base64;
 
 @RestController
 @RequestMapping("/customer")
@@ -49,6 +51,9 @@ public class CustomerController {
 
     @Autowired
     private HotelManagerRepository managerRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @PostMapping("/signup")
     public String signup(@RequestBody CustomerSignupDTO signupDTO) {
@@ -78,19 +83,32 @@ public class CustomerController {
         }
 
         List<Hotel> hotels = hotelRepository.findAll();
-
-        // Convert hotels to DTOs without manager
         List<Map<String, Object>> response = hotels.stream().map(hotel -> {
             Map<String, Object> data = new HashMap<>();
+            data.put("id", hotel.getId());
             data.put("name", hotel.getName());
             data.put("address", hotel.getAddress());
             data.put("contact", hotel.getContact());
             data.put("description", hotel.getDescription());
             data.put("amenities", hotel.getAmenities());
-            data.put("rooms", hotel.getRooms());
+            // Add image as base64 string
+            if (hotel.getImage() != null) {
+                data.put("image", "data:image/jpeg;base64," + java.util.Base64.getEncoder().encodeToString(hotel.getImage()));
+            } else {
+                data.put("image", null);
+            }
+            List<Map<String, Object>> roomList = hotel.getRooms().stream().map(room -> {
+                Map<String, Object> roomData = new HashMap<>();
+                roomData.put("id", room.getId());
+                roomData.put("roomNumber", room.getRoomNumber());
+                roomData.put("type", room.getType());
+                roomData.put("price", room.getPrice());
+                roomData.put("available", room.getAvailable());
+                return roomData;
+            }).toList();
+            data.put("rooms", roomList);
             return data;
         }).toList();
-
         return ResponseEntity.ok(response);
     }
 
@@ -115,8 +133,23 @@ public class CustomerController {
         response.put("contact", hotel.getContact());
         response.put("description", hotel.getDescription());
         response.put("amenities", hotel.getAmenities());
-        response.put("rooms", hotel.getRooms());
-
+        // Add image as base64 string
+        if (hotel.getImage() != null) {
+            response.put("image", "data:image/jpeg;base64," + java.util.Base64.getEncoder().encodeToString(hotel.getImage()));
+        } else {
+            response.put("image", null);
+        }
+        // Map rooms to include id
+        List<Map<String, Object>> roomList = hotel.getRooms().stream().map(room -> {
+            Map<String, Object> roomData = new HashMap<>();
+            roomData.put("id", room.getId());
+            roomData.put("roomNumber", room.getRoomNumber());
+            roomData.put("type", room.getType());
+            roomData.put("price", room.getPrice());
+            roomData.put("available", room.getAvailable());
+            return roomData;
+        }).toList();
+        response.put("rooms", roomList);
         return ResponseEntity.ok(response);
     }
 
@@ -162,36 +195,58 @@ public class CustomerController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String address,
             @RequestParam String email) {
-
+        logger.debug("Searching hotels with name: {}, address: {}, email: {}", name, address, email);
         if (!isCustomerValid(email)) {
+            logger.warn("Invalid customer email: {}", email);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Customer email not found!");
         }
-
         List<Hotel> hotels;
-
-        if (name != null && address != null) {
-            hotels = hotelRepository.findByNameContainingIgnoreCaseAndAddressContainingIgnoreCase(name, address);
-        } else if (name != null) {
-            hotels = hotelRepository.findByNameContainingIgnoreCase(name);
-        } else if (address != null) {
-            hotels = hotelRepository.findByAddressContainingIgnoreCase(address);
-        } else {
-            hotels = hotelRepository.findAll(); // or return bad request
+        try {
+            if (name != null && address != null && name.equals(address)) {
+                hotels = hotelRepository.findByNameContainingIgnoreCaseOrAddressContainingIgnoreCase(name, name);
+            } else if (name != null && address != null) {
+                hotels = hotelRepository.findByNameContainingIgnoreCaseAndAddressContainingIgnoreCase(name, address);
+            } else if (name != null) {
+                hotels = hotelRepository.findByNameContainingIgnoreCase(name);
+            } else if (address != null) {
+                hotels = hotelRepository.findByAddressContainingIgnoreCase(address);
+            } else {
+                hotels = hotelRepository.findAll();
+            }
+            logger.info("Search params: name={}, address={}, found {} hotels", name, address, hotels.size());
+            List<Map<String, Object>> response = hotels.stream().map(hotel -> {
+                Map<String, Object> data = new HashMap<>();
+                data.put("id", hotel.getId());
+                data.put("name", hotel.getName());
+                data.put("address", hotel.getAddress());
+                data.put("contact", hotel.getContact());
+                data.put("description", hotel.getDescription());
+                data.put("amenities", hotel.getAmenities());
+                // Add image as base64 string
+                if (hotel.getImage() != null) {
+                    data.put("image", "data:image/jpeg;base64," + java.util.Base64.getEncoder().encodeToString(hotel.getImage()));
+                } else {
+                    data.put("image", null);
+                }
+                List<Map<String, Object>> roomList = hotel.getRooms().stream().map(room -> {
+                    Map<String, Object> roomData = new HashMap<>();
+                    roomData.put("id", room.getId());
+                    roomData.put("roomNumber", room.getRoomNumber());
+                    roomData.put("type", room.getType());
+                    roomData.put("price", room.getPrice());
+                    roomData.put("available", room.getAvailable());
+                    return roomData;
+                }).toList();
+                data.put("rooms", roomList);
+                return data;
+            }).toList();
+            logger.debug("Found {} hotels matching search criteria", response.size());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error searching hotels", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while searching hotels. Please try again later.");
         }
-
-        List<Map<String, Object>> response = hotels.stream().map(hotel -> {
-            Map<String, Object> data = new HashMap<>();
-            data.put("id", hotel.getId());
-            data.put("name", hotel.getName());
-            data.put("address", hotel.getAddress());
-            data.put("contact", hotel.getContact());
-            data.put("description", hotel.getDescription());
-            data.put("amenities", hotel.getAmenities());
-            data.put("rooms", hotel.getRooms());
-            return data;
-        }).toList();
-
-        return ResponseEntity.ok(response);
     }
 
     // Filter Rooms by type and availability
@@ -303,6 +358,114 @@ public class CustomerController {
         }
         
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(@RequestParam String email) {
+        Optional<Customer> customerOpt = customerRepository.findByEmail(email);
+        if (customerOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Customer not found!");
+        }
+        Customer customer = customerOpt.get();
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", customer.getId());
+        response.put("username", customer.getUsername());
+        response.put("name", customer.getUsername()); // or customer.getName() if you have a name field
+        response.put("email", customer.getEmail());
+        response.put("phoneNumber", customer.getPhoneNumber());
+        // Encode byte[] to base64 string for frontend
+        response.put("profilePicture", customer.getProfilePicture() != null ? "data:image/*;base64," + Base64.getEncoder().encodeToString(customer.getProfilePicture()) : null);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/profile/update")
+    public ResponseEntity<?> updateProfile(
+            @RequestParam String email,
+            @RequestBody Map<String, Object> updates) {
+        try {
+            logger.debug("Updating profile for email: {}", email);
+            Optional<Customer> customerOpt = customerRepository.findByEmail(email);
+            if (customerOpt.isEmpty()) {
+                logger.warn("Customer not found for email: {}", email);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Customer not found!");
+            }
+            Customer customer = customerOpt.get();
+            // Handle name/username update
+            if (updates.containsKey("name")) {
+                String newUsername = (String) updates.get("name");
+                logger.debug("Updating username from {} to {}", customer.getUsername(), newUsername);
+                if (!newUsername.equals(customer.getUsername())) {
+                    if (customerRepository.existsByUsername(newUsername)) {
+                        logger.warn("Username {} is already taken", newUsername);
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Username is already taken. Please choose a different one.");
+                    }
+                    customer.setUsername(newUsername);
+                }
+            }
+            // Handle phone number update
+            if (updates.containsKey("phoneNumber")) {
+                String newPhoneNumber = (String) updates.get("phoneNumber");
+                logger.debug("Updating phone number from {} to {}", customer.getPhoneNumber(), newPhoneNumber);
+                customer.setPhoneNumber(newPhoneNumber);
+            }
+            // Handle profile picture update
+            if (updates.containsKey("profilePicture")) {
+                String newProfilePicture = (String) updates.get("profilePicture");
+                logger.debug("Updating profile picture. New picture length: {}", 
+                    newProfilePicture != null ? newProfilePicture.length() : 0);
+                if (newProfilePicture != null && !newProfilePicture.isEmpty()) {
+                    if (!newProfilePicture.startsWith("data:image/")) {
+                        logger.warn("Invalid profile picture format");
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Invalid profile picture format. Please upload a valid image.");
+                    }
+                    // Remove the data URL prefix before decoding
+                    String base64Data = newProfilePicture.substring(newProfilePicture.indexOf(",") + 1);
+                    byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+                    // Check if the image is too large (max 16MB for MEDIUMBLOB)
+                    if (imageBytes.length > 16 * 1024 * 1024) {
+                        logger.warn("Profile picture too large: {} bytes", imageBytes.length);
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Profile picture is too large. Please choose an image smaller than 16MB.");
+                    }
+                    customer.setProfilePicture(imageBytes);
+                }
+            }
+            try {
+                customerRepository.save(customer);
+                logger.info("Profile updated successfully for email: {}", email);
+                return ResponseEntity.ok("Profile updated successfully!");
+            } catch (Exception e) {
+                logger.error("Error saving customer profile: ", e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error saving profile. Please try again.");
+            }
+        } catch (Exception e) {
+            logger.error("Error updating profile: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("An error occurred while updating the profile. Please try again.");
+        }
+    }
+
+    @PutMapping("/profile/change-password")
+    public ResponseEntity<?> changePassword(
+            @RequestParam String email,
+            @RequestBody Map<String, String> passwords) {
+        Optional<Customer> customerOpt = customerRepository.findByEmail(email);
+        if (customerOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Customer not found!");
+        }
+        Customer customer = customerOpt.get();
+        String currentPassword = passwords.get("currentPassword");
+        String newPassword = passwords.get("newPassword");
+        // Use BCrypt for password check
+        if (!passwordEncoder.matches(currentPassword, customer.getPassword())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Current password is incorrect!");
+        }
+        customer.setPassword(passwordEncoder.encode(newPassword));
+        customerRepository.save(customer);
+        return ResponseEntity.ok("Password updated successfully!");
     }
 }
 

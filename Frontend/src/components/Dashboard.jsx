@@ -301,6 +301,12 @@ const Dashboard = () => {
           description: 'Create a new hotel manager account',
           action: () => setOpenCreateManager(true)
         },
+        {
+          title: 'All Bookings',
+          icon: <PeopleIcon />,
+          description: 'View all bookings for all hotels',
+          action: () => navigate('/admin/BookingManagement')
+        },
         // Add more admin actions as needed
       ];
     case 'hotel_manager':
@@ -317,12 +323,12 @@ const Dashboard = () => {
           description: 'View and manage hotel bookings',
           action: () => navigate('/manager/bookings')
         },
-        { 
+        /*{ 
           title: 'Reports', 
           icon: <SettingsIcon />, 
           description: 'View hotel performance reports',
           action: () => navigate('/manager/reports')
-        }
+        }*/
       ];
     case 'customer':
       return [

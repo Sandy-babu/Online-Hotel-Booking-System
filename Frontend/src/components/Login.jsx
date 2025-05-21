@@ -110,7 +110,14 @@ const Login = () => {
         console.error('Login error:', err);
         if (err.response) {
             console.error('Error response:', err.response.data);
-            setError(err.response.data.message || 'Login failed. Please try again.');
+            // Show the actual server response (string or object)
+            if (typeof err.response.data === 'string') {
+                setError(err.response.data);
+            } else if (err.response.data?.message) {
+                setError(err.response.data.message);
+            } else {
+                setError(JSON.stringify(err.response.data));
+            }
         } else if (err.request) {
             console.error('No response received:', err.request);
             setError('No response from server. Please try again.');

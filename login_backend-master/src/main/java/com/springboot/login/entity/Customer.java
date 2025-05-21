@@ -24,6 +24,13 @@ public class Customer {
     @Column(name = "created_at")
     private Date createdAt;
 
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Lob
+    @Column(name = "profile_picture", columnDefinition = "MEDIUMBLOB")
+    private byte[] profilePicture;
+
     // Constructors
     public Customer() {
         this.createdAt = new Date();  // Set signup date by default
@@ -69,5 +76,25 @@ public class Customer {
 
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Long getId() {
+        return (long) customerId;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public byte[] getProfilePicture() {
+        return profilePicture;
+    }
+
+    public void setProfilePicture(byte[] profilePicture) {
+        this.profilePicture = profilePicture;
     }
 }

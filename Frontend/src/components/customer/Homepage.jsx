@@ -3,33 +3,27 @@ import { Box, Typography, Button, Container, Grid, Card, CardContent, CardMedia,
 import SearchIcon from '@mui/icons-material/Search';
 import { useNavigate } from 'react-router-dom';
 
-const featuredHotels = [
-  {
-    name: 'Grand Palace Hotel',
-    image: 'https://source.unsplash.com/random/400x200/?hotel,luxury',
-    location: 'New York, USA',
-    price: 320,
-    rating: 4.8
-  },
-  {
-    name: 'Seaside Resort',
-    image: 'https://source.unsplash.com/random/400x200/?hotel,beach',
-    location: 'Malibu, USA',
-    price: 210,
-    rating: 4.6
-  },
-  {
-    name: 'Mountain View Inn',
-    image: 'https://source.unsplash.com/random/400x200/?hotel,mountain',
-    location: 'Aspen, USA',
-    price: 180,
-    rating: 4.7
-  }
-];
-
 const Homepage = () => {
   const navigate = useNavigate();
   const [search, setSearch] = React.useState('');
+  const [hotels, setHotels] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchHotels = async () => {
+      try {
+        const email = localStorage.getItem('userEmail');
+        const response = await fetch(`http://localhost:9000/customer/hotels?email=${email}`);
+        const data = await response.json();
+        setHotels(data);
+      } catch (err) {
+        setHotels([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHotels();
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -87,36 +81,43 @@ const Homepage = () => {
             Featured Hotels
           </Typography>
           <Grid container spacing={4} justifyContent="center">
-            {featuredHotels.map((hotel, idx) => (
-              <Grid item xs={12} sm={6} md={4} key={idx}>
-                <Card sx={{ borderRadius: 4, boxShadow: 4, transition: 'box-shadow 0.2s', '&:hover': { boxShadow: 8 }, height: '100%', minHeight: 340, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <CardMedia
-                    component="img"
-                    height="180"
-                    image={hotel.image}
-                    alt={hotel.name}
-                    sx={{ borderTopLeftRadius: 4, borderTopRightRadius: 4 }}
-                  />
-                  <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>{hotel.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">{hotel.location}</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, mt: 1 }}>${hotel.price}/night</Typography>
-                      <Typography variant="body2" color="secondary" sx={{ fontWeight: 600 }}>⭐ {hotel.rating}</Typography>
-                    </Box>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      fullWidth
-                      sx={{ mt: 2, borderRadius: 2, fontWeight: 700 }}
-                      onClick={() => navigate('/customer/hotels')}
-                    >
-                      View Hotels
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+            {loading ? (
+              <Typography variant="body1" sx={{ textAlign: 'center', width: '100%' }}>Loading hotels...</Typography>
+            ) : hotels.length === 0 ? (
+              <Typography variant="body1" sx={{ textAlign: 'center', width: '100%' }}>No hotels found.</Typography>
+            ) : (
+              hotels.slice(0, 3).map((hotel, idx) => (
+                <Grid item xs={12} sm={6} md={4} key={hotel.id || idx}>
+                  <Card sx={{ borderRadius: 4, boxShadow: 4, transition: 'box-shadow 0.2s', '&:hover': { boxShadow: 8 }, height: '100%', minHeight: 340, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <CardMedia
+                      component="img"
+                      height="180"
+                      image={hotel.image || 'https://source.unsplash.com/random/400x200/?hotel'}
+                      alt={hotel.name}
+                      sx={{ borderTopLeftRadius: 4, borderTopRightRadius: 4 }}
+                    />
+                    <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>{hotel.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">{hotel.address}</Typography>
+                        {hotel.price && (
+                          <Typography variant="body1" sx={{ fontWeight: 600, mt: 1 }}>${hotel.price}/night</Typography>
+                        )}
+                      </Box>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        fullWidth
+                        sx={{ mt: 2, borderRadius: 2, fontWeight: 700 }}
+                        onClick={() => navigate(`/customer/hotels/${hotel.id}`)}
+                      >
+                        View Details
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))
+            )}
           </Grid>
           <Box sx={{ textAlign: 'center', mt: 6 }}>
             <Button

@@ -9,6 +9,10 @@ import jakarta.persistence.*;
 public class Room {
 	
 	@Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
     @Column(name = "room_number", nullable = false, unique = true)
     private String roomNumber;
 
@@ -64,6 +68,14 @@ public class Room {
 
 	public void setHotel(Hotel hotel) {
 		this.hotel = hotel;
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 }

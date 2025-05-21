@@ -29,6 +29,10 @@ public class Hotel {
     @Column(name = "amenities")
     private String amenities;
 
+    @Lob
+    @Column(name = "image", columnDefinition = "MEDIUMBLOB")
+    private byte[] image;
+
     @ManyToOne
     @JoinColumn(name = "manager_id", nullable = false)
     private Manager manager;
@@ -100,5 +104,13 @@ public class Hotel {
 
     public void setRooms(List<Room> rooms) {
         this.rooms = rooms;
+    }
+
+    public byte[] getImage() {
+        return image;
+    }
+
+    public void setImage(byte[] image) {
+        this.image = image;
     }
 }

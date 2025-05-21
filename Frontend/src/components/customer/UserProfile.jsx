@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_ENDPOINTS } from '../../config/api';
 
 const UserProfile = () => {
   const navigate = useNavigate();
@@ -69,45 +70,30 @@ const UserProfile = () => {
     const fetchUserProfile = async () => {
       try {
         setLoading(true);
-        
-        // This would typically be an API call
-        // For now, we'll use localStorage data and mock additional fields
-        const userStr = localStorage.getItem('user');
+        setError('');
         const email = localStorage.getItem('userEmail');
-        
-        if (!userStr || !email) {
+        if (!email) {
           navigate('/login');
           return;
         }
-        
-        const userData = JSON.parse(userStr);
-        
-        // Mock data for now - in a real app this would come from an API
-        const mockUserProfile = {
-          id: '1',
-          username: userData.username || 'user1',
-          name: userData.name || 'John Doe',
-          email: email,
-          phoneNumber: userData.phoneNumber || '+1 (555) 123-4567',
-          profilePicture: userData.profilePicture || 'https://source.unsplash.com/random/200x200/?portrait'
-        };
-        
-        setProfile(mockUserProfile);
-        setFormData({
-          name: mockUserProfile.name,
-          email: mockUserProfile.email,
-          phoneNumber: mockUserProfile.phoneNumber,
-          profilePicture: mockUserProfile.profilePicture
+        // Make the real API call
+        const response = await axios.get(API_ENDPOINTS.CUSTOMER.PROFILE, {
+          params: { email }
         });
-        
+        const userData = response.data;
+        setProfile(userData);
+        setFormData({
+          name: userData.name,
+          email: userData.email,
+          phoneNumber: userData.phoneNumber,
+          profilePicture: userData.profilePicture || 'https://source.unsplash.com/random/200x200/?portrait'
+        });
       } catch (err) {
-        console.error('Error fetching user profile:', err);
         setError('Failed to load profile data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
-    
     fetchUserProfile();
   }, [navigate]);
   
@@ -143,45 +129,53 @@ const UserProfile = () => {
   const handleProfileUpdate = async () => {
     try {
       setLoading(true);
-      
-      // In a real app, make an API call to update the profile
-      // For this demo, we'll just update the local state
-      
-      // Mock API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Update the profile state
-      setProfile(prev => ({
-        ...prev,
+      setError('');
+      const email = localStorage.getItem('userEmail');
+
+      // Validate profile picture if it's being updated
+      if (formData.profilePicture && formData.profilePicture !== profile.profilePicture) {
+        // Check if it's a valid base64 image
+        if (!formData.profilePicture.startsWith('data:image/')) {
+          setError('Invalid image format. Please upload a valid image.');
+          setLoading(false);
+          return;
+        }
+
+        // Check if the image is too large (max 1MB)
+        if (formData.profilePicture.length > 1000000) {
+          setError('Image is too large. Please choose an image smaller than 1MB.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const response = await axios.put(API_ENDPOINTS.CUSTOMER.UPDATE_PROFILE, {
         name: formData.name,
-        email: formData.email,
         phoneNumber: formData.phoneNumber,
         profilePicture: formData.profilePicture
-      }));
+      }, {
+        params: { email }
+      });
       
-      // Update localStorage
-      const userStr = localStorage.getItem('user');
-      if (userStr) {
-        const userData = JSON.parse(userStr);
-        const updatedUserData = {
-          ...userData,
-          name: formData.name
-        };
-        localStorage.setItem('user', JSON.stringify(updatedUserData));
-        localStorage.setItem('userEmail', formData.email);
+      if (response.data === "Profile updated successfully!") {
+        setSuccess('Profile updated successfully!');
+        setEditMode(false);
+        // Refetch profile to update UI
+        const profileResponse = await axios.get(API_ENDPOINTS.CUSTOMER.PROFILE, { params: { email } });
+        setProfile(profileResponse.data);
+        setFormData({
+          name: profileResponse.data.name,
+          email: profileResponse.data.email,
+          phoneNumber: profileResponse.data.phoneNumber,
+          profilePicture: profileResponse.data.profilePicture || 'https://source.unsplash.com/random/200x200/?portrait'
+        });
+      } else {
+        setError(response.data || 'Failed to update profile. Please try again.');
       }
-      
-      setSuccess('Profile updated successfully!');
-      setEditMode(false);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-      
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      console.error('Error updating profile:', err);
-      setError('Failed to update profile. Please try again.');
+      console.error('Profile update error:', err);
+      setError(err.response?.data || 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -189,20 +183,19 @@ const UserProfile = () => {
   
   const handlePasswordUpdate = async () => {
     try {
-      // Validation
       if (passwordData.newPassword !== passwordData.confirmPassword) {
         setError('New passwords do not match');
         return;
       }
-      
       setLoading(true);
-      
-      // In a real app, make an API call to update the password
-      // For this demo, we'll just simulate a successful update
-      
-      // Mock API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
+      setError('');
+      const email = localStorage.getItem('userEmail');
+      await axios.put(API_ENDPOINTS.CUSTOMER.CHANGE_PASSWORD, {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      }, {
+        params: { email }
+      });
       setSuccess('Password updated successfully!');
       setChangePasswordOpen(false);
       setPasswordData({
@@ -210,14 +203,8 @@ const UserProfile = () => {
         newPassword: '',
         confirmPassword: ''
       });
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-      
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      console.error('Error updating password:', err);
       setError('Failed to update password. Please try again.');
     } finally {
       setLoading(false);
@@ -225,20 +212,13 @@ const UserProfile = () => {
   };
   
   return (
-    <Box sx={{ bgcolor: 'background.paper', minHeight: '100vh', py: 4 }}>
-      <Container maxWidth="md">
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+    <Box sx={{ bgcolor: 'background.paper', minHeight: '100vh', minWidth: '100vw', height: '100vh', width: '100vw', p: 0, m: 0, pt: 4, px: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Container maxWidth={false} disableGutters sx={{ width: '100vw', height: '100vh', p: 0, m: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Paper elevation={3} sx={{ p: 4, borderRadius: 0, width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
             <Typography variant="h4" component="h1" fontWeight={700}>
               My Profile
             </Typography>
-            <Button 
-              variant="outlined" 
-              onClick={() => navigate('/customer/dashboard')} 
-              sx={{ borderRadius: 2 }}
-            >
-              Back to Dashboard
-            </Button>
           </Box>
           
           {error && (
@@ -376,10 +356,10 @@ const UserProfile = () => {
                   variant="outlined" 
                   color="primary"
                   onClick={() => setChangePasswordOpen(true)}
+                  sx={{ mr: 2.5 }}
                 >
                   Change Password
                 </Button>
-                
                 <Box>
                   {editMode ? (
                     <>

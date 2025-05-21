@@ -30,19 +30,31 @@ const HotelList = () => {
   
   const navigate = useNavigate();
 
+  console.log('HotelList component rendered');
+
   useEffect(() => {
+    console.log('HotelList useEffect triggered');
     const fetchHotels = async () => {
       try {
         setLoading(true);
+        setError('');
         const email = localStorage.getItem('userEmail');
-        const response = await axios.get(API_ENDPOINTS.CUSTOMER.HOTELS.SEARCH, {
+        console.log('Fetching hotels with email:', email);
+        if (!email) {
+          setError('Please login to view hotels');
+          return;
+        }
+        const response = await axios.get(API_ENDPOINTS.HOTEL.GET_ALL, {
           params: { email }
         });
-        setHotels(response.data);
-        setFilteredHotels(response.data);
+        console.log('Initial hotels fetch response:', response.data);
+        if (response.data) {
+          setHotels(response.data);
+          setFilteredHotels(response.data);
+        }
       } catch (err) {
         console.error('Error fetching hotels:', err);
-        setError('Failed to load hotels. Please try again later.');
+        setError(err.response?.data || 'Failed to load hotels. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -52,33 +64,85 @@ const HotelList = () => {
   }, []);
 
   const handleLocationChange = (e) => {
+    console.log('Location changed:', e.target.value);
     setLocation(e.target.value);
   };
 
   const handlePriceChange = (event, newValue) => {
+    console.log('Price range changed:', newValue);
     setPriceRange(newValue);
   };
 
-  const applyFilters = () => {
-    let filtered = [...hotels];
-    
-    // Filter by location
-    if (location) {
-      filtered = filtered.filter(hotel => 
-        hotel.location.toLowerCase().includes(location.toLowerCase())
-      );
+  const handleSearchClick = () => {
+    console.log('Search button clicked');
+    console.log('Current location:', location);
+    console.log('Current price range:', priceRange);
+    applyFilters();
+  };
+
+  const applyFilters = async () => {
+    console.log('applyFilters function called');
+    try {
+      setLoading(true);
+      setError('');
+      const email = localStorage.getItem('userEmail');
+      console.log('Search initiated with email:', email);
+      
+      if (!email) {
+        setError('Please login to search hotels');
+        return;
+      }
+
+      // If no search term is provided, show all hotels
+      if (!location.trim()) {
+        console.log('No search term provided, showing all hotels');
+        setFilteredHotels(hotels);
+        setLoading(false);
+        return;
+      }
+
+      const searchTerm = location.trim();
+      const params = { email };
+      if (searchTerm) {
+        params.name = searchTerm;
+        params.address = searchTerm;
+      }
+      console.log('Making API call to search hotels with:', params);
+
+      const response = await axios.get(API_ENDPOINTS.HOTEL.SEARCH, {
+        params
+      });
+
+      console.log('Search API response:', response.data);
+
+      if (response.data && Array.isArray(response.data)) {
+        setFilteredHotels(response.data);
+      } else {
+        console.error('Invalid response format:', response.data);
+        setError('Invalid response from server');
+      }
+    } catch (err) {
+      console.error('Error searching hotels:', err);
+      console.error('Error details:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+      
+      if (err.response?.status === 401) {
+        setError('Please login to search hotels');
+      } else if (err.response?.data) {
+        setError(err.response.data);
+      } else {
+        setError('Failed to search hotels. Please try again later.');
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    // Filter by price
-    filtered = filtered.filter(hotel => 
-      hotel.price >= priceRange[0] && hotel.price <= priceRange[1]
-    );
-    
-    setFilteredHotels(filtered);
   };
 
   const viewHotelDetails = (hotelId) => {
-    navigate(`/customer/hotel/${hotelId}`);
+    navigate(`/customer/hotels/${hotelId}`);
   };
 
   return (
@@ -92,11 +156,11 @@ const HotelList = () => {
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                label="Location"
+                label="Location or Hotel Name"
                 variant="outlined"
                 value={location}
                 onChange={handleLocationChange}
-                placeholder="City, region, or landmark"
+                placeholder="City, region, or hotel name"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -115,7 +179,7 @@ const HotelList = () => {
                 onChange={handlePriceChange}
                 valueLabelDisplay="auto"
                 min={0}
-                max={500}
+                max={10000}
                 step={10}
               />
             </Grid>
@@ -123,7 +187,7 @@ const HotelList = () => {
               <Button 
                 variant="contained" 
                 fullWidth 
-                onClick={applyFilters}
+                onClick={handleSearchClick}
                 startIcon={<Search />}
                 sx={{ py: 1.5 }}
               >
@@ -159,9 +223,9 @@ const HotelList = () => {
                   <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>{hotel.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">{hotel.location}</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, mt: 1 }}>${hotel.price}/night</Typography>
-                      <Rating value={hotel.rating} precision={0.1} readOnly size="small" sx={{ mt: 1 }} />
+                      <Typography variant="body2" color="text.secondary">{hotel.address}</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600, mt: 1 }}>${hotel.price || 'Contact for price'}/night</Typography>
+                      <Rating value={hotel.rating || 0} precision={0.1} readOnly size="small" sx={{ mt: 1 }} />
                     </Box>
                     <Button
                       variant="contained"

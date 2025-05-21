@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Base64;
+import com.springboot.login.dto.HotelDTO;
 
 @RestController
 @RequestMapping("/manager/hotel")
@@ -32,16 +34,34 @@ public class HotelController {
 
     // Create Hotel
     @PostMapping("/add")
-    public String addHotel(@RequestBody Hotel hotel, @RequestParam String email) {
+    public String addHotel(@RequestBody HotelDTO hotelDTO, @RequestParam String email) {
         Optional<Manager> managerOpt = managerRepository.findByEmail(email);
         if (managerOpt.isEmpty()) return "Manager not found!";
 
         // Check if a hotel with the same name already exists
-        if (hotelRepository.findByName(hotel.getName()).isPresent()) {
+        if (hotelRepository.findByName(hotelDTO.getName()).isPresent()) {
             return "Hotel name already exists!";
         }
 
+        Hotel hotel = new Hotel();
+        hotel.setName(hotelDTO.getName());
+        hotel.setAddress(hotelDTO.getAddress());
+        hotel.setContact(hotelDTO.getContact());
+        hotel.setDescription(hotelDTO.getDescription());
+        hotel.setAmenities(hotelDTO.getAmenities());
         hotel.setManager(managerOpt.get());
+        // Handle image as base64 string
+        if (hotelDTO.getImage() != null && !hotelDTO.getImage().isEmpty()) {
+            try {
+                String base64Data = hotelDTO.getImage();
+                if (base64Data.startsWith("data:image")) {
+                    base64Data = base64Data.substring(base64Data.indexOf(",") + 1);
+                }
+                hotel.setImage(Base64.getDecoder().decode(base64Data));
+            } catch (Exception e) {
+                // Ignore, keep as is
+            }
+        }
         hotelRepository.save(hotel);
         return "Hotel added successfully!";
     }
@@ -58,7 +78,23 @@ public class HotelController {
                 logger.info("Found manager in managers table: {}", email);
                 List<Hotel> hotels = hotelRepository.findByManager(managerOpt.get());
                 logger.info("Found {} hotels for manager {}", hotels.size(), email);
-                return ResponseEntity.ok(hotels);
+                // Map image to base64 string
+                List<java.util.Map<String, Object>> response = hotels.stream().map(hotel -> {
+                    java.util.Map<String, Object> data = new java.util.HashMap<>();
+                    data.put("id", hotel.getId());
+                    data.put("name", hotel.getName());
+                    data.put("address", hotel.getAddress());
+                    data.put("contact", hotel.getContact());
+                    data.put("description", hotel.getDescription());
+                    data.put("amenities", hotel.getAmenities());
+                    if (hotel.getImage() != null) {
+                        data.put("image", "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(hotel.getImage()));
+                    } else {
+                        data.put("image", null);
+                    }
+                    return data;
+                }).toList();
+                return ResponseEntity.ok(response);
             }
 
             // If not found, try hotel_managers table
@@ -82,7 +118,7 @@ public class HotelController {
     }
 
     @PutMapping("/update/by-id/{id}")
-    public String updateHotelById(@PathVariable Long id, @RequestParam String email, @RequestBody Hotel updatedHotel) {
+    public String updateHotelById(@PathVariable Long id, @RequestParam String email, @RequestBody HotelDTO updatedHotel) {
         Optional<Manager> managerOpt = managerRepository.findByEmail(email);
         if (managerOpt.isEmpty()) return "Manager not found!";
 
@@ -95,8 +131,19 @@ public class HotelController {
         hotel.setContact(updatedHotel.getContact());
         hotel.setDescription(updatedHotel.getDescription());
         hotel.setAmenities(updatedHotel.getAmenities());
+        // Handle image as base64 string
+        if (updatedHotel.getImage() != null && !updatedHotel.getImage().isEmpty()) {
+            try {
+                String base64Data = updatedHotel.getImage();
+                if (base64Data.startsWith("data:image")) {
+                    base64Data = base64Data.substring(base64Data.indexOf(",") + 1);
+                }
+                hotel.setImage(Base64.getDecoder().decode(base64Data));
+            } catch (Exception e) {
+                // Ignore, keep as is
+            }
+        }
         hotelRepository.save(hotel);
-
         return "Hotel updated successfully!";
     }
 

@@ -54,15 +54,13 @@ import { format, parseISO, isAfter, isBefore, addDays } from 'date-fns';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const BookingManagement = () => {
+const AdminBookingManagement = () => {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [hotels, setHotels] = useState([]);
-  const [selectedHotel, setSelectedHotel] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
@@ -70,72 +68,43 @@ const BookingManagement = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [openBookingDialog, setOpenBookingDialog] = useState(false);
-  const [openMessageDialog, setOpenMessageDialog] = useState(false);
-  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    fetchManagerData();
+    fetchAllBookings();
   }, []);
 
   useEffect(() => {
     filterBookings();
-  }, [bookings, searchQuery, statusFilter, dateRangeFilter, selectedHotel, activeTab, sortOrder]);
+  }, [bookings, searchQuery, statusFilter, dateRangeFilter, activeTab, sortOrder]);
 
-  const fetchManagerData = async () => {
+  const fetchAllBookings = async () => {
     try {
       setLoading(true);
-      const email = localStorage.getItem('userEmail');
       const token = localStorage.getItem('token');
-      
-      if (!email || !token) {
+      if (!token) {
         setError('Authentication required. Please log in again.');
         navigate('/login');
         return;
       }
-
-      // Fetch hotels managed by this manager
-      const hotelsResponse = await axios.get(`http://localhost:9000/manager/hotel/view?email=${email}`, {
+      // Fetch all bookings (admin endpoint)
+      const response = await axios.get('http://localhost:9000/customer/booking/admin/all', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      if (Array.isArray(hotelsResponse.data)) {
-        setHotels(hotelsResponse.data);
-        
-        // Fetch all bookings for all hotels managed by this manager
-        const bookingsPromises = hotelsResponse.data.map(hotel => {
-          console.log("Fetching bookings for hotel:", hotel.id);
-          return axios.get(`http://localhost:9000/customer/booking/hotel/${hotel.id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }).then(res => {
-            console.log("Bookings response for hotel", hotel.id, ":", res.data);
-            return res;
-          });
-        });
-        
-        const bookingsResponses = await Promise.all(bookingsPromises);
-        
-        // Combine all bookings into a single array, enriching with hotelName, guestName, and roomType
-        const allBookings = [];
-        bookingsResponses.forEach((response, idx) => {
-          const hotel = hotelsResponse.data[idx];
-          (Array.isArray(response.data) ? response.data : []).forEach(booking => {
-            allBookings.push({
-              ...booking,
-              hotelName: hotel.name,
-              guestName: booking.customer?.name || booking.customer?.username || booking.customer?.email || '',
-              email: booking.customer?.email || '',
-              phone: booking.customer?.phoneNumber || booking.customer?.phone || '',
-              roomType: booking.room?.type || '',
-              roomNumber: booking.room?.roomNumber || '',
-            });
-          });
-        });
-        setBookings(allBookings);
-        setFilteredBookings(allBookings);
-      }
+      // Enrich bookings with hotel and guest info if needed
+      const allBookings = (Array.isArray(response.data) ? response.data : []).map(booking => ({
+        ...booking,
+        hotelName: booking.hotel?.name || '',
+        guestName: booking.customer?.name || booking.customer?.username || booking.customer?.email || '',
+        email: booking.customer?.email || '',
+        phone: booking.customer?.phoneNumber || booking.customer?.phone || '',
+        roomType: booking.room?.type || '',
+        roomNumber: booking.room?.roomNumber || '',
+      }));
+      setBookings(allBookings);
+      setFilteredBookings(allBookings);
     } catch (error) {
-      console.error('Error fetching manager data:', error);
-      setError('Failed to load manager data. Please try again.');
+      console.error('Error fetching all bookings:', error);
+      setError('Failed to load bookings. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -143,21 +112,6 @@ const BookingManagement = () => {
 
   const filterBookings = () => {
     let filtered = [...bookings];
-    
-    // Debug logs for hotel filter
-    console.log('selectedHotel:', selectedHotel, typeof selectedHotel);
-    console.log('All booking.hotelId:', bookings.map(b => b.hotelId));
-    console.log('All booking.hotel?.id:', bookings.map(b => b.hotel?.id));
-    if (selectedHotel !== 'all') {
-      // Try both possible structures
-      const filteredByHotelId = bookings.filter(booking => String(booking.hotelId) === String(selectedHotel));
-      const filteredByHotelObjId = bookings.filter(booking => String(booking.hotel?.id) === String(selectedHotel));
-      console.log('Filtered by hotelId:', filteredByHotelId);
-      console.log('Filtered by hotel?.id:', filteredByHotelObjId);
-      // Use whichever returns more results
-      filtered = filteredByHotelId.length >= filteredByHotelObjId.length ? filteredByHotelId : filteredByHotelObjId;
-    }
-    
     // Filter by search query (guest name or booking ID)
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
@@ -167,12 +121,10 @@ const BookingManagement = () => {
         booking.email?.toLowerCase().includes(lowerQuery)
       );
     }
-    
     // Filter by status
     if (statusFilter !== 'all') {
       filtered = filtered.filter(booking => booking.status?.toLowerCase() === statusFilter.toLowerCase());
     }
-    
     // Filter by date range
     const today = new Date();
     switch (dateRangeFilter) {
@@ -205,7 +157,6 @@ const BookingManagement = () => {
       default:
         break;
     }
-    
     // Filter by tab
     switch (activeTab) {
       case 'new':
@@ -235,20 +186,13 @@ const BookingManagement = () => {
       default: // 'all'
         break;
     }
-    
     // Apply sorting
     filtered.sort((a, b) => {
       const dateA = new Date(a.checkIn);
       const dateB = new Date(b.checkIn);
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
-    
     setFilteredBookings(filtered);
-  };
-
-  const getHotelNameById = (hotelId) => {
-    const hotel = hotels.find(h => h.id === hotelId);
-    return hotel ? hotel.name : 'Unknown Hotel';
   };
 
   const getStatusChip = (status) => {
@@ -275,56 +219,16 @@ const BookingManagement = () => {
   const handleViewBooking = (booking) => {
     setSelectedBooking(booking);
     setOpenBookingDialog(true);
-    
-    // Mark booking as viewed if it's new
-    if (!booking.isViewed) {
-      markBookingAsViewed(booking.id);
-    }
-  };
-
-  const markBookingAsViewed = async (bookingId) => {
-    try {
-      const email = localStorage.getItem('userEmail');
-      const token = localStorage.getItem('token');
-      
-      // Update the booking status to viewed
-      await axios.put(`/api/manager/bookings/${bookingId}/viewed`, {}, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        params: { email }
-      });
-      
-      // Update local state
-      setBookings(prevBookings => 
-        prevBookings.map(booking => 
-          booking.id === bookingId 
-            ? { ...booking, isViewed: true } 
-            : booking
-        )
-      );
-    } catch (error) {
-      console.error('Error marking booking as viewed:', error);
-    }
-  };
-
-  const handleOpenMessageDialog = (booking) => {
-    setSelectedBooking(booking);
-    setOpenMessageDialog(true);
   };
 
   const handleCancelBooking = async (bookingId) => {
     try {
       const confirmed = window.confirm('Are you sure you want to cancel this booking?');
       if (!confirmed) return;
-      
-      const email = localStorage.getItem('userEmail');
       const token = localStorage.getItem('token');
-      
-      await axios.put(`/api/manager/bookings/${bookingId}/cancel`, {}, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        params: { email }
+      await axios.put(`/customer/booking/${bookingId}/cancel`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      // Update local state
       setBookings(prevBookings => 
         prevBookings.map(booking => 
           booking.id === bookingId 
@@ -332,14 +236,11 @@ const BookingManagement = () => {
             : booking
         )
       );
-      
       setSuccess('Booking cancelled successfully!');
       setOpenBookingDialog(false);
-      
       setTimeout(() => {
         setSuccess('');
       }, 3000);
-      
     } catch (error) {
       console.error('Error cancelling booking:', error);
       setError('Failed to cancel booking. Please try again.');
@@ -351,20 +252,9 @@ const BookingManagement = () => {
     booking.status === 'confirmed' && !booking.isViewed
   ).length;
 
-  // Debug log for today's check-ins
-  console.log(
-    bookings.map(b => ({
-      checkIn: b.checkIn,
-      parsed: parseISO(b.checkIn),
-      formatted: b.checkIn?.split('T')[0],
-      today: format(new Date(), 'yyyy-MM-dd'),
-      status: b.status
-    }))
-  );
-
   // Count today's check-ins
   const todayCheckInsCount = bookings.filter(booking => {
-    const checkInDate = booking.checkIn?.split('T')[0]; // get only the date part
+    const checkInDate = booking.checkIn?.split('T')[0];
     const todayDate = format(new Date(), 'yyyy-MM-dd');
     return checkInDate === todayDate && booking.status?.toLowerCase() === 'confirmed';
   }).length;
@@ -374,28 +264,25 @@ const BookingManagement = () => {
       <Container maxWidth={false} sx={{ py: 4, px: { xs: 2, sm: 3, md: 4 } }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Typography variant="h4" component="h1" fontWeight={700}>
-            Booking Management
+            All Bookings (Admin)
           </Typography>
           <Button 
             variant="outlined" 
-            onClick={() => navigate('/manager/dashboard')}
+            onClick={() => navigate('/admin/dashboard')}
           >
             Back to Dashboard
           </Button>
         </Box>
-        
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
           </Alert>
         )}
-        
         {success && (
           <Alert severity="success" sx={{ mb: 3 }}>
             {success}
           </Alert>
         )}
-        
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
             <CircularProgress />
@@ -445,7 +332,6 @@ const BookingManagement = () => {
                 </Paper>
               </Grid>
             </Grid>
-            
             {/* Filters and Tabs */}
             <Paper sx={{ p: 2, mb: 4, borderRadius: 2 }}>
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
@@ -464,24 +350,6 @@ const BookingManagement = () => {
                     ),
                   }}
                 />
-                
-                <FormControl size="small" fullWidth>
-                  <InputLabel id="hotel-select-label">Filter by Hotel</InputLabel>
-                  <Select
-                    labelId="hotel-select-label"
-                    value={selectedHotel}
-                    label="Filter by Hotel"
-                    onChange={(e) => setSelectedHotel(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  >
-                    <MenuItem value="all">All Hotels</MenuItem>
-                    {hotels.map((hotel) => (
-                      <MenuItem key={hotel.id} value={hotel.id}>
-                        {hotel.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                
                 <FormControl size="small" fullWidth>
                   <InputLabel id="status-select-label">Filter by Status</InputLabel>
                   <Select
@@ -496,7 +364,6 @@ const BookingManagement = () => {
                     <MenuItem value="completed">Completed</MenuItem>
                   </Select>
                 </FormControl>
-                
                 <FormControl size="small" fullWidth>
                   <InputLabel id="date-range-select-label">Filter by Date</InputLabel>
                   <Select
@@ -512,14 +379,11 @@ const BookingManagement = () => {
                     <MenuItem value="past">Past Bookings</MenuItem>
                   </Select>
                 </FormControl>
-                
                 <IconButton onClick={toggleSortOrder} sx={{ alignSelf: 'center' }}>
                   <Sort />
                 </IconButton>
               </Box>
-              
               <Divider sx={{ my: 2 }} />
-              
               <Box sx={{ width: '100%' }}>
                 <Tabs 
                   value={activeTab} 
@@ -550,7 +414,6 @@ const BookingManagement = () => {
                 </Tabs>
               </Box>
             </Paper>
-            
             {/* Bookings Table */}
             <TableContainer component={Paper} sx={{ borderRadius: 2, overflow: 'hidden' }}>
               <Table aria-label="bookings table">
@@ -611,7 +474,6 @@ const BookingManagement = () => {
                             >
                               <Search />
                             </IconButton>
-                            
                             {booking.status === 'confirmed' && (
                               <IconButton 
                                 size="small" 
@@ -633,7 +495,6 @@ const BookingManagement = () => {
           </>
         )}
       </Container>
-      
       {/* Booking Details Dialog */}
       <Dialog 
         open={openBookingDialog} 
@@ -665,7 +526,6 @@ const BookingManagement = () => {
                     </Typography>
                   </Paper>
                 </Grid>
-                
                 <Grid item xs={12} md={6}>
                   <Paper sx={{ p: 2, height: '100%' }}>
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -691,7 +551,6 @@ const BookingManagement = () => {
                     </Typography>
                   </Paper>
                 </Grid>
-                
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -741,4 +600,4 @@ const BookingManagement = () => {
   );
 };
 
-export default BookingManagement;
+export default AdminBookingManagement; 

@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/bookings")
+@RequestMapping("/customer/booking")
 public class BookingController {
 
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
@@ -76,7 +76,7 @@ public class BookingController {
     /**
      * Get all bookings for a customer
      */
-    @GetMapping("/customer")
+    @GetMapping("/all")
     public ResponseEntity<?> getCustomerBookings(@RequestParam String email) {
         logger.info("Fetching all bookings for customer: {}", email);
         

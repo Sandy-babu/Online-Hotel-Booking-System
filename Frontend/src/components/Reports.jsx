@@ -13,6 +13,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Button
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -165,7 +166,9 @@ const Reports = () => {
                 Average Rating
               </Typography>
               <Typography variant="h4">
-                {reportData.averageRating.toFixed(1)}
+                {typeof reportData.averageRating === 'number' && !isNaN(reportData.averageRating)
+                  ? reportData.averageRating.toFixed(1)
+                  : 'N/A'}
               </Typography>
             </CardContent>
           </Card>

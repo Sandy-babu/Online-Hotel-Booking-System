@@ -7,7 +7,7 @@ import axios from 'axios';
 
 // Base URL for backend API
 const API_BASE_URL = 'http://localhost:9000';
-const NODE_API_BASE_URL = 'http://localhost:5000';
+const NODE_API_BASE_URL = 'http://localhost:9000';
 
 // Add axios interceptor to include JWT token in all requests
 axios.interceptors.request.use(
@@ -59,6 +59,7 @@ export const API_ENDPOINTS = {
     LOGIN: `${API_BASE_URL}/customer/login`,
     PROFILE: `${API_BASE_URL}/customer/profile`,
     UPDATE_PROFILE: `${API_BASE_URL}/customer/profile/update`,
+    CHANGE_PASSWORD: `${API_BASE_URL}/customer/profile/change-password`,
     GET_ALL: `${API_BASE_URL}/customer/all`,
   },
   
@@ -114,11 +115,11 @@ export const API_ENDPOINTS = {
   
   // Booking endpoints (for customers)
   BOOKING: {
-    CREATE: `${API_BASE_URL}/customer/bookings/create`,
-    GET_USER_BOOKINGS: `${API_BASE_URL}/customer/bookings`,
-    GET_BY_ID: (id) => `${API_BASE_URL}/customer/bookings/${id}`,
-    CANCEL: (id) => `${API_BASE_URL}/customer/bookings/${id}/cancel`,
-    UPDATE: (id) => `${API_BASE_URL}/customer/bookings/${id}/update`,
+    CREATE: `${API_BASE_URL}/customer/booking/create`,
+    GET_USER_BOOKINGS: `${API_BASE_URL}/customer/booking/all`,
+    GET_BY_ID: (reference) => `${API_BASE_URL}/customer/booking/${reference}`,
+    CANCEL: (reference) => `${API_BASE_URL}/customer/booking/${reference}/cancel`,
+    UPDATE: (reference) => `${API_BASE_URL}/customer/booking/${reference}/update`,
   },
   
   // Payment endpoints
